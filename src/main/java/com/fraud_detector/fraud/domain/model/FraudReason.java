@@ -1,0 +1,13 @@
+package com.fraud_detector.fraud.domain.model;
+
+public enum FraudReason {
+
+    UNUSUAL_AMOUNT,
+    UNUSUAL_LOCATION,
+    IMPOSSIBLE_TRAVEL,
+    UNUSUAL_TIME,
+    HIGH_TRANSACTION_VELOCITY,
+    UNKNOWN_DEVICE,
+    UNUSUAL_MERCHANT_CATEGORY,
+    BEHAVIORAL_DEVIATION
+}
