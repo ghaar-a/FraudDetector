@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fraud-detector-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: frauddetector
+      POSTGRES_USER: frauddetector
+      POSTGRES_PASSWORD: frauddetector
+    ports:
+      - "5432:5432"
+    volumes:
+      - fraud_detector_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U frauddetector -d frauddetector"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fraud_detector_postgres_data:

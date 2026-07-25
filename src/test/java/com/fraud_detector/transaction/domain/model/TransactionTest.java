@@ -1,5 +1,6 @@
 package com.fraud_detector.transaction.domain.model;
 
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
