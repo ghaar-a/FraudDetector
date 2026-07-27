@@ -1,20 +1,27 @@
-
 package com.fraud_detector.transaction.presentation.controller;
 
 import com.fraud_detector.fraud.domain.model.FraudAnalysis;
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+import com.fraud_detector.shared.presentation.error.ApiErrorResponse;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.domain.model.Money;
 import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.model.TransactionLocation;
 import com.fraud_detector.transaction.presentation.dto.FraudAnalysisResponse;
 import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
+@Tag(name = "Transactions", description = "Transaction analysis endpoints")
 public class TransactionController {
 
     private final TransactionApplicationService transactionApplicationService;
@@ -26,6 +33,27 @@ public class TransactionController {
     }
 
     @PostMapping("/analyze")
+    @Operation(
+            summary = "Analyze a transaction",
+            description = "Evaluates a transaction against fraud rules and returns a fraud analysis."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Analysis returned successfully",
+                    content = @Content(schema = @Schema(implementation = FraudAnalysisResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Unexpected error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+            )
+    })
     public ResponseEntity<FraudAnalysisResponse> analyze(
             @Valid @RequestBody TransactionAnalysisRequest request
     ) {
