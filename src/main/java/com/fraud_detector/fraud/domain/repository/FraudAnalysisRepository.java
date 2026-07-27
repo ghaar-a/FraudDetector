@@ -7,15 +7,9 @@ import java.util.UUID;
 
 public interface FraudAnalysisRepository {
 
-    FraudAnalysis save(
-            FraudAnalysis analysis
-    );
+    FraudAnalysis save(FraudAnalysis analysis);
 
-    Optional<FraudAnalysis> findById(
-            UUID analysisId
-    );
+    Optional<FraudAnalysis> findById(UUID analysisId);
 
-    Optional<FraudAnalysis> findByTransactionId(
-            UUID transactionId
-    );
+    Optional<FraudAnalysis> findByTransactionId(UUID transactionId);
 }

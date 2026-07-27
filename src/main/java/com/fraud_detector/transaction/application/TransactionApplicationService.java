@@ -2,6 +2,7 @@ package com.fraud_detector.transaction.application;
 
 import com.fraud_detector.fraud.application.FraudDetectionService;
 import com.fraud_detector.fraud.domain.model.FraudAnalysis;
+import com.fraud_detector.fraud.domain.repository.FraudAnalysisRepository;
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.repository.TransactionRepository;
@@ -14,17 +15,22 @@ import java.util.Objects;
 public class TransactionApplicationService {
 
     private final TransactionRepository transactionRepository;
+    private final FraudAnalysisRepository fraudAnalysisRepository;
     private final FraudDetectionService fraudDetectionService;
 
     public TransactionApplicationService(
             TransactionRepository transactionRepository,
+            FraudAnalysisRepository fraudAnalysisRepository,
             FraudDetectionService fraudDetectionService
     ) {
         this.transactionRepository = Objects.requireNonNull(
                 transactionRepository,
                 "Transaction repository cannot be null"
         );
-
+        this.fraudAnalysisRepository = Objects.requireNonNull(
+                fraudAnalysisRepository,
+                "Fraud analysis repository cannot be null"
+        );
         this.fraudDetectionService = Objects.requireNonNull(
                 fraudDetectionService,
                 "Fraud detection service cannot be null"
@@ -40,19 +46,16 @@ public class TransactionApplicationService {
                 transaction,
                 "Transaction cannot be null"
         );
-
         Objects.requireNonNull(
                 context,
                 "Fraud rule context cannot be null"
         );
 
-        transactionRepository.save(
-                transaction
-        );
+        transactionRepository.save(transaction);
 
-        return fraudDetectionService.analyze(
-                transaction,
-                context
-        );
+        FraudAnalysis analysis =
+                fraudDetectionService.analyze(transaction, context);
+
+        return fraudAnalysisRepository.save(analysis);
     }
 }
