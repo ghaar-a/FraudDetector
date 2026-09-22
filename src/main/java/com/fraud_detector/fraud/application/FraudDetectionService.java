@@ -6,10 +6,12 @@ import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.fraud.domain.rule.FraudRuleEngine;
 import com.fraud_detector.fraud.domain.service.RiskScoringService;
 import com.fraud_detector.transaction.domain.model.Transaction;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
 
+@Service
 public class FraudDetectionService {
 
     private final FraudRuleEngine fraudRuleEngine;

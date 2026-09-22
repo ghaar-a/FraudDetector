@@ -1,0 +1,10 @@
+package com.fraud_detector.transaction.infrastructure.messaging;
+
+public final class KafkaTopics {
+
+    public static final String TRANSACTION_ANALYSIS_REQUESTS =
+            "fraud.transaction.analysis.requested";
+
+    private KafkaTopics() {
+    }
+}
