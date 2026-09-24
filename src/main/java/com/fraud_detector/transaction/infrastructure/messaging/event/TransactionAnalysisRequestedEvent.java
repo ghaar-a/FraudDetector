@@ -1,6 +1,10 @@
 package com.fraud_detector.transaction.infrastructure.messaging.event;
 
+import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+import com.fraud_detector.transaction.domain.model.Money;
+import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.model.TransactionCategory;
+import com.fraud_detector.transaction.domain.model.TransactionLocation;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -12,6 +16,16 @@ public record TransactionAnalysisRequestedEvent(
         FraudRuleContextRequest context
 ) {
 
+    public static TransactionAnalysisRequestedEvent from(
+            Transaction transaction,
+            FraudRuleContext context
+    ) {
+        return new TransactionAnalysisRequestedEvent(
+                TransactionRequest.from(transaction),
+                FraudRuleContextRequest.from(context)
+        );
+    }
+
     public record TransactionRequest(
             String userId,
             MoneyRequest amount,
@@ -21,6 +35,20 @@ public record TransactionAnalysisRequestedEvent(
             LocationRequest location,
             String deviceId
     ) {
+
+        private static TransactionRequest from(
+                Transaction transaction
+        ) {
+            return new TransactionRequest(
+                    transaction.userId(),
+                    MoneyRequest.from(transaction.amount()),
+                    transaction.merchant(),
+                    transaction.category(),
+                    transaction.timestamp(),
+                    LocationRequest.from(transaction.location()),
+                    transaction.deviceId()
+            );
+        }
     }
 
     public record FraudRuleContextRequest(
@@ -30,12 +58,37 @@ public record TransactionAnalysisRequestedEvent(
             Set<String> knownDeviceIds,
             LocationRequest usualLocation
     ) {
+
+        private static FraudRuleContextRequest from(
+                FraudRuleContext context
+        ) {
+            return new FraudRuleContextRequest(
+                    MoneyRequest.from(
+                            context.averageTransactionAmount()
+                    ),
+                    context.usualStartTime(),
+                    context.usualEndTime(),
+                    context.knownDeviceIds(),
+                    LocationRequest.from(
+                            context.usualLocation()
+                    )
+            );
+        }
     }
 
     public record MoneyRequest(
             BigDecimal amount,
             String currency
     ) {
+
+        private static MoneyRequest from(
+                Money money
+        ) {
+            return new MoneyRequest(
+                    money.amount(),
+                    money.currency()
+            );
+        }
     }
 
     public record LocationRequest(
@@ -45,5 +98,17 @@ public record TransactionAnalysisRequestedEvent(
             Double latitude,
             Double longitude
     ) {
+
+        private static LocationRequest from(
+                TransactionLocation location
+        ) {
+            return new LocationRequest(
+                    location.country(),
+                    location.state(),
+                    location.city(),
+                    location.latitude(),
+                    location.longitude()
+            );
+        }
     }
 }

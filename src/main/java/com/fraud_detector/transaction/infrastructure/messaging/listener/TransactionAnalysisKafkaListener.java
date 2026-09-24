@@ -1,9 +1,9 @@
 package com.fraud_detector.transaction.infrastructure.messaging.listener;
 
-import com.fraud_detector.fraud.application.FraudDetectionService;
-import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.application.mapper.TransactionAnalysisMapper;
 import com.fraud_detector.transaction.domain.model.Transaction;
+import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -14,16 +14,16 @@ import java.util.Objects;
 @Service
 public class TransactionAnalysisKafkaListener {
 
-    private final FraudDetectionService fraudDetectionService;
+    private final TransactionApplicationService transactionApplicationService;
     private final TransactionAnalysisMapper mapper;
 
     public TransactionAnalysisKafkaListener(
-            FraudDetectionService fraudDetectionService,
+            TransactionApplicationService transactionApplicationService,
             TransactionAnalysisMapper mapper
     ) {
-        this.fraudDetectionService = Objects.requireNonNull(
-                fraudDetectionService,
-                "Fraud detection service cannot be null"
+        this.transactionApplicationService = Objects.requireNonNull(
+                transactionApplicationService,
+                "Transaction application service cannot be null"
         );
         this.mapper = Objects.requireNonNull(
                 mapper,
@@ -39,11 +39,20 @@ public class TransactionAnalysisKafkaListener {
     public void onMessage(
             TransactionAnalysisRequestedEvent event
     ) {
-        Objects.requireNonNull(event, "Event cannot be null");
+        Objects.requireNonNull(
+                event,
+                "Event cannot be null"
+        );
 
-        Transaction transaction = mapper.toTransaction(event.transaction());
-        FraudRuleContext context = mapper.toFraudRuleContext(event.context());
+        Transaction transaction =
+                mapper.toTransaction(event.transaction());
 
-        fraudDetectionService.analyze(transaction, context);
+        FraudRuleContext context =
+                mapper.toFraudRuleContext(event.context());
+
+        transactionApplicationService.process(
+                transaction,
+                context
+        );
     }
 }

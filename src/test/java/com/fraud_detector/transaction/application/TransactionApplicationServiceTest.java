@@ -13,7 +13,10 @@ import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.model.TransactionCategory;
 import com.fraud_detector.transaction.domain.model.TransactionLocation;
 import com.fraud_detector.transaction.domain.repository.TransactionRepository;
+import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
+import com.fraud_detector.transaction.infrastructure.messaging.producer.TransactionAnalysisKafkaProducer;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import java.math.BigDecimal;
@@ -22,9 +25,12 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -39,12 +45,79 @@ class TransactionApplicationServiceTest {
     private final FraudDetectionService fraudDetectionService =
             mock(FraudDetectionService.class);
 
+    private final TransactionAnalysisKafkaProducer transactionAnalysisKafkaProducer =
+            mock(TransactionAnalysisKafkaProducer.class);
+
     private final TransactionApplicationService service =
             new TransactionApplicationService(
                     transactionRepository,
                     fraudAnalysisRepository,
-                    fraudDetectionService
+                    fraudDetectionService,
+                    transactionAnalysisKafkaProducer
             );
+
+    @Test
+    void shouldPublishTransactionAnalysisRequest() {
+        Transaction transaction = createTransaction();
+        FraudRuleContext context = createContext();
+
+        service.requestAnalysis(
+                transaction,
+                context
+        );
+
+        ArgumentCaptor<TransactionAnalysisRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TransactionAnalysisRequestedEvent.class
+                );
+
+        verify(transactionAnalysisKafkaProducer)
+                .publish(eventCaptor.capture());
+
+        TransactionAnalysisRequestedEvent event =
+                eventCaptor.getValue();
+
+        assertThat(event).isNotNull();
+
+        assertThat(event.transaction().userId())
+                .isEqualTo("user-123");
+
+        assertThat(event.transaction().merchant())
+                .isEqualTo("Electronics Store");
+
+        assertThat(event.transaction().category())
+                .isEqualTo(TransactionCategory.ELECTRONICS);
+
+        assertThat(event.transaction().amount().amount())
+                .isEqualByComparingTo("149.90");
+
+        assertThat(event.transaction().amount().currency())
+                .isEqualTo("BRL");
+
+        assertThat(event.transaction().deviceId())
+                .isEqualTo("device-123");
+
+        assertThat(event.context().averageTransactionAmount().amount())
+                .isEqualByComparingTo("100.00");
+
+        assertThat(event.context().averageTransactionAmount().currency())
+                .isEqualTo("BRL");
+
+        assertThat(event.context().usualStartTime())
+                .isEqualTo(LocalTime.of(8, 0));
+
+        assertThat(event.context().usualEndTime())
+                .isEqualTo(LocalTime.of(22, 0));
+
+        assertThat(event.context().knownDeviceIds())
+                .containsExactly("device-123");
+
+        verifyNoInteractions(
+                transactionRepository,
+                fraudAnalysisRepository,
+                fraudDetectionService
+        );
+    }
 
     @Test
     void shouldPersistTransactionAnalyzeAndPersistFraudAnalysis() {
@@ -82,7 +155,10 @@ class TransactionApplicationServiceTest {
                         context
                 );
 
-        assertSame(expectedAnalysis, result);
+        assertSame(
+                expectedAnalysis,
+                result
+        );
 
         InOrder inOrder =
                 inOrder(
@@ -91,9 +167,17 @@ class TransactionApplicationServiceTest {
                         fraudAnalysisRepository
                 );
 
-        inOrder.verify(transactionRepository).save(transaction);
-        inOrder.verify(fraudDetectionService).analyze(transaction, context);
-        inOrder.verify(fraudAnalysisRepository).save(expectedAnalysis);
+        inOrder.verify(transactionRepository)
+                .save(transaction);
+
+        inOrder.verify(fraudDetectionService)
+                .analyze(
+                        transaction,
+                        context
+                );
+
+        inOrder.verify(fraudAnalysisRepository)
+                .save(expectedAnalysis);
 
         verifyNoMoreInteractions(
                 transactionRepository,
@@ -105,10 +189,15 @@ class TransactionApplicationServiceTest {
     private Transaction createTransaction() {
         return Transaction.create(
                 "user-123",
-                Money.of(149.90, "BRL"),
+                Money.of(
+                        149.90,
+                        "BRL"
+                ),
                 "Electronics Store",
                 TransactionCategory.ELECTRONICS,
-                Instant.parse("2026-07-24T12:00:00Z"),
+                Instant.parse(
+                        "2026-07-24T12:00:00Z"
+                ),
                 createLocation(),
                 "device-123"
         );
@@ -116,7 +205,10 @@ class TransactionApplicationServiceTest {
 
     private FraudRuleContext createContext() {
         return new FraudRuleContext(
-                Money.of(100.00, "BRL"),
+                Money.of(
+                        100.00,
+                        "BRL"
+                ),
                 LocalTime.of(8, 0),
                 LocalTime.of(22, 0),
                 Set.of("device-123"),
