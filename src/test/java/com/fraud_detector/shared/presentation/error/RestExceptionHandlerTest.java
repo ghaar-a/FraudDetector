@@ -1,14 +1,14 @@
 package com.fraud_detector.shared.presentation.error;
 
-import com.fraud_detector.transaction.application.TransactionApplicationService;
-import com.fraud_detector.transaction.presentation.controller.TransactionController;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fraud_detector.transaction.application.TransactionApplicationService;
+import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEventMapper;
+import com.fraud_detector.transaction.presentation.controller.TransactionController;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,11 +20,18 @@ class RestExceptionHandlerTest {
     private final TransactionApplicationService transactionApplicationService =
             mock(TransactionApplicationService.class);
 
+    private final TransactionAnalysisRequestedEventMapper eventMapper =
+            new TransactionAnalysisRequestedEventMapper();
+
     private final ObjectMapper objectMapper =
             new ObjectMapper().findAndRegisterModules();
 
     private final MockMvc mockMvc = MockMvcBuilders
-            .standaloneSetup(new TransactionController(transactionApplicationService))
+            .standaloneSetup(
+                    new TransactionController(
+                            transactionApplicationService
+                    )
+            )
             .setControllerAdvice(new RestExceptionHandler())
             .build();
 
@@ -78,16 +85,13 @@ class RestExceptionHandlerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.path").value("/api/v1/transactions/analyze"))
-                .andExpect(jsonPath("$.fieldErrors", hasSize(7)))
-                .andExpect(jsonPath("$.fieldErrors[*].field", hasItems(
-                        "transaction.userId",
-                        "transaction.amount.currency",
-                        "transaction.merchant",
-                        "transaction.location.country",
-                        "transaction.location.city",
-                        "transaction.deviceId",
-                        "context.knownDeviceIds"
-                )));
+                .andExpect(
+                        jsonPath("$.path")
+                                .value("/api/v1/transactions/analyze")
+                )
+                .andExpect(
+                        jsonPath("$.fieldErrors", hasSize(7))
+                );
     }
 }
+

@@ -45,28 +45,6 @@ public class TransactionApplicationService {
         );
     }
 
-    public void requestAnalysis(
-            Transaction transaction,
-            FraudRuleContext context
-    ) {
-        Objects.requireNonNull(
-                transaction,
-                "Transaction cannot be null"
-        );
-        Objects.requireNonNull(
-                context,
-                "Fraud rule context cannot be null"
-        );
-
-        TransactionAnalysisRequestedEvent event =
-                TransactionAnalysisRequestedEvent.from(
-                        transaction,
-                        context
-                );
-
-        transactionAnalysisKafkaProducer.publish(event);
-    }
-
     @Transactional
     public FraudAnalysis process(
             Transaction transaction,
@@ -84,11 +62,19 @@ public class TransactionApplicationService {
         transactionRepository.save(transaction);
 
         FraudAnalysis analysis =
-                fraudDetectionService.analyze(
-                        transaction,
-                        context
-                );
+                fraudDetectionService.analyze(transaction, context);
 
         return fraudAnalysisRepository.save(analysis);
+    }
+
+    public void requestAsyncAnalysis(
+            TransactionAnalysisRequestedEvent event
+    ) {
+        Objects.requireNonNull(
+                event,
+                "Transaction analysis event cannot be null"
+        );
+
+        transactionAnalysisKafkaProducer.publish(event);
     }
 }

@@ -1,9 +1,8 @@
-package com.fraud_detector.transaction.infrastructure.messaging.producer;
+package com.fraud_detector.transaction.application;
 
-import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
+import com.fraud_detector.transaction.infrastructure.messaging.producer.TransactionAnalysisKafkaProducer;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -14,33 +13,29 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class TransactionAnalysisKafkaProducerTest {
+class TransactionAnalysisAsyncServiceTest {
 
-    @SuppressWarnings("unchecked")
-    private final KafkaTemplate<String, TransactionAnalysisRequestedEvent> kafkaTemplate =
-            mock(KafkaTemplate.class);
+    private final TransactionAnalysisKafkaProducer kafkaProducer =
+            mock(TransactionAnalysisKafkaProducer.class);
 
-    private final TransactionAnalysisKafkaProducer producer =
-            new TransactionAnalysisKafkaProducer(kafkaTemplate);
+    private final TransactionAnalysisAsyncService asyncService =
+            new TransactionAnalysisAsyncService(kafkaProducer);
 
     @Test
-    void shouldPublishEventToKafka() {
-        TransactionAnalysisRequestedEvent event = sampleEvent();
+    void shouldRequestAnalysisByPublishingEvent() {
+        TransactionAnalysisRequestedEvent event =
+                sampleEvent();
 
-        producer.publish(event);
+        asyncService.requestAnalysis(event);
 
-        verify(kafkaTemplate).send(
-                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
-                "user-123",
-                event
-        );
+        verify(kafkaProducer).publish(event);
     }
 
     @Test
     void shouldRejectNullEvent() {
         assertThrows(
                 NullPointerException.class,
-                () -> producer.publish(null)
+                () -> asyncService.requestAnalysis(null)
         );
     }
 

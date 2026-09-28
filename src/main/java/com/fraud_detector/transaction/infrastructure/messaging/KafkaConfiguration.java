@@ -5,6 +5,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -24,6 +25,15 @@ import java.util.Map;
 @EnableKafka
 public class KafkaConfiguration {
 
+    private final String bootstrapServers;
+
+    public KafkaConfiguration(
+            @Value("${spring.kafka.bootstrap-servers}")
+            String bootstrapServers
+    ) {
+        this.bootstrapServers = bootstrapServers;
+    }
+
     @Bean
     public ProducerFactory<
             String,
@@ -34,7 +44,7 @@ public class KafkaConfiguration {
 
         properties.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                "localhost:9092"
+                bootstrapServers
         );
 
         properties.put(
@@ -75,7 +85,7 @@ public class KafkaConfiguration {
 
         properties.put(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                "localhost:9092"
+                bootstrapServers
         );
 
         properties.put(

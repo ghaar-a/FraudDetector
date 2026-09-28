@@ -40,12 +40,18 @@ dependencies {
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 
-	// Testes & Testcontainers (Versão 1.19.7 Fixada Explicitamente)
+	// Testes, Testcontainers & Kafka Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
+	testImplementation("org.springframework.kafka:spring-kafka-test")
 	testImplementation("org.testcontainers:testcontainers:1.19.7")
 	testImplementation("org.testcontainers:junit-jupiter:1.19.7")
 	testImplementation("org.testcontainers:postgresql:1.19.7")
+	testImplementation("org.testcontainers:kafka:1.19.7")
+	testImplementation("org.awaitility:awaitility")
+
+	testImplementation("org.springframework.boot:spring-boot-restclient")
+	testImplementation("org.springframework.boot:spring-boot-resttestclient")
 
 	// Lombok & Suporte para execução de Testes
 	testCompileOnly("org.projectlombok:lombok")

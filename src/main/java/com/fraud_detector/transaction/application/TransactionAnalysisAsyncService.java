@@ -23,6 +23,11 @@ public class TransactionAnalysisAsyncService {
     public void requestAnalysis(
             TransactionAnalysisRequestedEvent event
     ) {
+        Objects.requireNonNull(
+                event,
+                "Transaction analysis event cannot be null"
+        );
+
         kafkaProducer.publish(event);
     }
 }

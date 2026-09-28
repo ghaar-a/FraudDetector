@@ -1,12 +1,13 @@
 package com.fraud_detector.transaction.presentation.controller;
 
+import com.fraud_detector.fraud.domain.model.FraudAnalysis;
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.shared.presentation.error.ApiErrorResponse;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.domain.model.Money;
 import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.model.TransactionLocation;
-import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisAcceptedResponse;
+import com.fraud_detector.transaction.presentation.dto.FraudAnalysisResponse;
 import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,16 +16,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
-@Tag(
-        name = "Transactions",
-        description = "Transaction analysis endpoints"
-)
+@Tag(name = "Transactions", description = "Transaction analysis endpoints")
 public class TransactionController {
 
     private final TransactionApplicationService transactionApplicationService;
@@ -37,16 +34,16 @@ public class TransactionController {
 
     @PostMapping("/analyze")
     @Operation(
-            summary = "Request transaction analysis",
-            description = "Publishes a transaction analysis request for asynchronous fraud processing through Kafka."
+            summary = "Analyze a transaction",
+            description = "Evaluates a transaction against fraud rules and returns a fraud analysis."
     )
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "202",
-                    description = "Analysis request accepted for asynchronous processing",
+                    responseCode = "200",
+                    description = "Analysis returned successfully",
                     content = @Content(
                             schema = @Schema(
-                                    implementation = TransactionAnalysisAcceptedResponse.class
+                                    implementation = FraudAnalysisResponse.class
                             )
                     )
             ),
@@ -69,30 +66,18 @@ public class TransactionController {
                     )
             )
     })
-    public ResponseEntity<TransactionAnalysisAcceptedResponse> analyze(
+    public ResponseEntity<FraudAnalysisResponse> analyze(
             @Valid @RequestBody TransactionAnalysisRequest request
     ) {
-        Transaction transaction =
-                toTransaction(request.transaction());
+        Transaction transaction = toTransaction(request.transaction());
+        FraudRuleContext context = toFraudRuleContext(request.context());
 
-        FraudRuleContext context =
-                toFraudRuleContext(request.context());
-
-        transactionApplicationService.requestAnalysis(
+        FraudAnalysis analysis = transactionApplicationService.process(
                 transaction,
                 context
         );
 
-        TransactionAnalysisAcceptedResponse response =
-                new TransactionAnalysisAcceptedResponse(
-                        "Transaction analysis request accepted.",
-                        "ACCEPTED",
-                        "fraud.transaction.analysis.requested"
-                );
-
-        return ResponseEntity
-                .status(HttpStatus.ACCEPTED)
-                .body(response);
+        return ResponseEntity.ok(toResponse(analysis));
     }
 
     private Transaction toTransaction(
@@ -142,6 +127,20 @@ public class TransactionController {
                         location.latitude(),
                         location.longitude()
                 )
+        );
+    }
+
+    private FraudAnalysisResponse toResponse(
+            FraudAnalysis analysis
+    ) {
+        return new FraudAnalysisResponse(
+                analysis.id(),
+                analysis.transactionId().value(),
+                analysis.riskScore().value(),
+                analysis.riskLevel(),
+                analysis.decision(),
+                analysis.reasons(),
+                analysis.analyzedAt()
         );
     }
 }
