@@ -1,42 +1,45 @@
 package com.fraud_detector.transaction.integration;
 
-import com.fraud_detector.fraud.infrastructure.persistence.repository.FraudAnalysisJpaRepository;
 import com.fraud_detector.transaction.domain.model.TransactionCategory;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
-import com.fraud_detector.transaction.infrastructure.persistence.repository.JpaTransactionRepository;
-import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisRequest;
+import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
+import com.fraud_detector.transaction.infrastructure.messaging.listener.TransactionAnalysisKafkaListener;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.resttestclient.TestRestTemplate;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+        webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
-@AutoConfigureTestRestTemplate
 @Testcontainers
 @ActiveProfiles("test")
 class TransactionAsyncKafkaIntegrationTest {
@@ -96,71 +99,149 @@ class TransactionAsyncKafkaIntegrationTest {
     }
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private KafkaTemplate<
+            String,
+            TransactionAnalysisRequestedEvent
+            > kafkaTemplate;
 
-    @Autowired
-    private JpaTransactionRepository transactionRepository;
-
-    @Autowired
-    private FraudAnalysisJpaRepository fraudAnalysisRepository;
+    @MockitoSpyBean
+    private TransactionAnalysisKafkaListener kafkaListener;
 
     @Test
-    void shouldProcessAsyncTransactionThroughKafkaAndPersistResults() {
+    void shouldRetryFailedMessageAndPublishItToDeadLetterTopic()
+            throws Exception {
 
-        TransactionAnalysisRequest request =
-                createRequest();
+        TransactionAnalysisRequestedEvent failingEvent =
+                createFailingEvent();
 
-        HttpHeaders headers =
-                new HttpHeaders();
+        kafkaTemplate.send(
+                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
+                "user-retry-dlt",
+                failingEvent
+        ).get();
 
-        headers.setContentType(
-                MediaType.APPLICATION_JSON
-        );
+        verify(
+                kafkaListener,
+                timeout(20_000)
+                        .times(3)
+        ).onMessage(any(TransactionAnalysisRequestedEvent.class));
 
-        HttpEntity<TransactionAnalysisRequest> httpEntity =
-                new HttpEntity<>(
-                        request,
-                        headers
-                );
-
-        ResponseEntity<String> response =
-                restTemplate.postForEntity(
-                        "/api/v1/transactions/analyze/async",
-                        httpEntity,
-                        String.class
-                );
-
-        assertThat(response.getStatusCode())
-                .isEqualTo(HttpStatus.ACCEPTED);
-
-        await()
-                .atMost(Duration.ofSeconds(30))
-                .pollInterval(Duration.ofMillis(500))
-                .untilAsserted(() -> {
-
-                    assertThat(
-                            transactionRepository.findAll()
+        try (
+                Consumer<
+                        String,
+                        TransactionAnalysisRequestedEvent
+                        > consumer =
+                        createDltConsumer()
+        ) {
+            consumer.subscribe(
+                    Set.of(
+                            KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT
                     )
-                            .anyMatch(
-                                    transaction ->
-                                            transaction
-                                                    .getUserId()
-                                                    .equals("user-123")
-                            );
+            );
 
-                    assertThat(
-                            fraudAnalysisRepository.findAll()
-                    )
-                            .isNotEmpty();
-                });
+            ConsumerRecords<
+                    String,
+                    TransactionAnalysisRequestedEvent
+                    > records = ConsumerRecords.empty();
+
+            long deadline =
+                    System.currentTimeMillis() + 20_000;
+
+            while (
+                    records.isEmpty()
+                            && System.currentTimeMillis() < deadline
+            ) {
+                records = consumer.poll(
+                        Duration.ofMillis(500)
+                );
+            }
+
+            assertThat(records)
+                    .isNotEmpty();
+
+            var dltRecord =
+                    records.iterator().next();
+
+            assertThat(dltRecord.key())
+                    .isEqualTo("user-retry-dlt");
+
+            assertThat(dltRecord.value())
+                    .isNotNull();
+
+            assertThat(
+                    dltRecord.value()
+                            .transaction()
+                            .userId()
+            )
+                    .isEqualTo("user-retry-dlt");
+
+            assertThat(
+                    dltRecord.headers()
+                            .lastHeader(
+                                    "kafka_dlt-exception-fqcn"
+                            )
+            )
+                    .isNotNull();
+        }
     }
 
-    private TransactionAnalysisRequest createRequest() {
+    private Consumer<
+            String,
+            TransactionAnalysisRequestedEvent
+            > createDltConsumer() {
 
-        return new TransactionAnalysisRequest(
-                new TransactionAnalysisRequest.TransactionRequest(
-                        "user-123",
-                        new TransactionAnalysisRequest.MoneyRequest(
+        Map<String, Object> properties =
+                new HashMap<>();
+
+        properties.put(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafka.getBootstrapServers()
+        );
+
+        properties.put(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                "fraud-detector-dlt-test-consumer"
+        );
+
+        properties.put(
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                "earliest"
+        );
+
+        properties.put(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
+
+        properties.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                JacksonJsonDeserializer.class
+        );
+
+        JacksonJsonDeserializer<
+                TransactionAnalysisRequestedEvent
+                > valueDeserializer =
+                new JacksonJsonDeserializer<>(
+                        TransactionAnalysisRequestedEvent.class
+                );
+
+        valueDeserializer.addTrustedPackages(
+                "com.fraud_detector.transaction.infrastructure.messaging.event"
+        );
+
+        return new KafkaConsumer<>(
+                properties,
+                new StringDeserializer(),
+                valueDeserializer
+        );
+    }
+
+    private TransactionAnalysisRequestedEvent createFailingEvent() {
+
+        return new TransactionAnalysisRequestedEvent(
+                new TransactionAnalysisRequestedEvent.TransactionRequest(
+                        "user-retry-dlt",
+                        new TransactionAnalysisRequestedEvent.MoneyRequest(
                                 new BigDecimal("149.90"),
                                 "BRL"
                         ),
@@ -169,31 +250,16 @@ class TransactionAsyncKafkaIntegrationTest {
                         Instant.parse(
                                 "2026-07-24T12:00:00Z"
                         ),
-                        new TransactionAnalysisRequest.LocationRequest(
+                        new TransactionAnalysisRequestedEvent.LocationRequest(
                                 "BR",
                                 "SP",
                                 "São Paulo",
                                 -23.5505,
                                 -46.6333
                         ),
-                        "device-123"
+                        "device-retry"
                 ),
-                new TransactionAnalysisRequest.FraudRuleContextRequest(
-                        new TransactionAnalysisRequest.MoneyRequest(
-                                new BigDecimal("100.00"),
-                                "BRL"
-                        ),
-                        LocalTime.of(8, 0),
-                        LocalTime.of(22, 0),
-                        Set.of("device-123"),
-                        new TransactionAnalysisRequest.LocationRequest(
-                                "BR",
-                                "SP",
-                                "São Paulo",
-                                -23.5505,
-                                -46.6333
-                        )
-                )
+                null
         );
     }
 }

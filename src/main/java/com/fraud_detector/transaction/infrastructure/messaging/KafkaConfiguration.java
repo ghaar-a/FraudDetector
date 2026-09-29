@@ -3,6 +3,7 @@ package com.fraud_detector.transaction.infrastructure.messaging;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,8 +16,11 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -118,6 +122,36 @@ public class KafkaConfiguration {
     }
 
     @Bean
+    public DeadLetterPublishingRecoverer transactionAnalysisDeadLetterPublishingRecoverer(
+            KafkaTemplate<
+                    String,
+                    TransactionAnalysisRequestedEvent
+                    > transactionAnalysisKafkaTemplate
+    ) {
+        return new DeadLetterPublishingRecoverer(
+                transactionAnalysisKafkaTemplate,
+                (record, exception) ->
+                        new TopicPartition(
+                                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT,
+                                record.partition()
+                        )
+        );
+    }
+
+    @Bean
+    public DefaultErrorHandler transactionAnalysisKafkaErrorHandler(
+            DeadLetterPublishingRecoverer transactionAnalysisDeadLetterPublishingRecoverer
+    ) {
+        return new DefaultErrorHandler(
+                transactionAnalysisDeadLetterPublishingRecoverer,
+                new FixedBackOff(
+                        0L,
+                        2L
+                )
+        );
+    }
+
+    @Bean
     public ConcurrentKafkaListenerContainerFactory<
             String,
             TransactionAnalysisRequestedEvent
@@ -125,7 +159,8 @@ public class KafkaConfiguration {
             ConsumerFactory<
                     String,
                     TransactionAnalysisRequestedEvent
-                    > transactionAnalysisConsumerFactory
+                    > transactionAnalysisConsumerFactory,
+            DefaultErrorHandler transactionAnalysisKafkaErrorHandler
     ) {
         ConcurrentKafkaListenerContainerFactory<
                 String,
@@ -135,6 +170,10 @@ public class KafkaConfiguration {
 
         factory.setConsumerFactory(
                 transactionAnalysisConsumerFactory
+        );
+
+        factory.setCommonErrorHandler(
+                transactionAnalysisKafkaErrorHandler
         );
 
         return factory;
