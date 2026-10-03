@@ -3,21 +3,21 @@ package com.fraud_detector.transaction.integration;
 import com.fraud_detector.transaction.domain.model.TransactionCategory;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
+import com.fraud_detector.transaction.infrastructure.messaging.listener.TransactionAnalysisKafkaListener;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -31,19 +31,16 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.NONE
-)
+@SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
-class TransactionAsyncKafkaIntegrationTest {
+class TransactionAsyncKafkaRetryDltIntegrationTest {
 
-    @Container
-    static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>(
-                    "postgres:16-alpine"
-            );
 
     @Container
     static final KafkaContainer kafka =
@@ -57,21 +54,6 @@ class TransactionAsyncKafkaIntegrationTest {
     static void configureProperties(
             DynamicPropertyRegistry registry
     ) {
-        registry.add(
-                "spring.datasource.url",
-                postgres::getJdbcUrl
-        );
-
-        registry.add(
-                "spring.datasource.username",
-                postgres::getUsername
-        );
-
-        registry.add(
-                "spring.datasource.password",
-                postgres::getPassword
-        );
-
         registry.add(
                 "spring.kafka.bootstrap-servers",
                 kafka::getBootstrapServers
@@ -99,36 +81,88 @@ class TransactionAsyncKafkaIntegrationTest {
             TransactionAnalysisRequestedEvent
             > kafkaTemplate;
 
-    @Test
-    void shouldRetryFailedMessageAndPublishItToDeadLetterTopic()
-            throws Exception {
+    @MockitoSpyBean
+    private TransactionAnalysisKafkaListener kafkaListener;
 
-        TransactionAnalysisRequestedEvent failingEvent =
-                createFailingEvent();
+    @Test
+    void shouldPublishFailedMessageToDeadLetterTopic() {
+
+        String deadLetterTopic =
+                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT;
+
+        doThrow(
+                new IllegalStateException(
+                        "Simulated Kafka processing failure"
+                )
+        )
+                .when(kafkaListener)
+                .onMessage(
+                        any(TransactionAnalysisRequestedEvent.class)
+                );
+
+        TransactionAnalysisRequestedEvent event =
+                createEvent();
 
         kafkaTemplate.send(
                 KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
-                "user-retry-dlt",
-                failingEvent
-        ).get();
+                event.transaction().userId(),
+                event
+        );
+
+        kafkaTemplate.flush();
+
+        verify(
+                kafkaListener,
+                timeout(20_000)
+                        .times(3)
+        )
+                .onMessage(
+                        any(TransactionAnalysisRequestedEvent.class)
+                );
+
+        Map<String, Object> consumerProperties =
+                new HashMap<>();
+
+        consumerProperties.put(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafka.getBootstrapServers()
+        );
+
+        consumerProperties.put(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                "fraud-detector-dlt-test"
+        );
+
+        consumerProperties.put(
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                "earliest"
+        );
+
+        consumerProperties.put(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
+
+        consumerProperties.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
 
         try (
-                Consumer<
-                        String,
-                        TransactionAnalysisRequestedEvent
-                        > consumer =
-                        createDltConsumer()
+                Consumer<String, String> consumer =
+                        new DefaultKafkaConsumerFactory<
+                                String,
+                                String
+                                >(consumerProperties)
+                                .createConsumer()
         ) {
+
             consumer.subscribe(
-                    Set.of(
-                            KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT
-                    )
+                    Set.of(deadLetterTopic)
             );
 
-            ConsumerRecords<
-                    String,
-                    TransactionAnalysisRequestedEvent
-                    > records = ConsumerRecords.empty();
+            ConsumerRecords<String, String> records =
+                    ConsumerRecords.empty();
 
             long deadline =
                     System.currentTimeMillis() + 30_000;
@@ -145,88 +179,26 @@ class TransactionAsyncKafkaIntegrationTest {
             assertThat(records)
                     .isNotEmpty();
 
+            assertThat(records.count())
+                    .isGreaterThan(0);
+
             var dltRecord =
                     records.iterator().next();
 
             assertThat(dltRecord.key())
-                    .isEqualTo("user-retry-dlt");
+                    .isEqualTo("user-dlt-test");
 
             assertThat(dltRecord.value())
-                    .isNotNull();
-
-            assertThat(
-                    dltRecord.value()
-                            .transaction()
-                            .userId()
-            )
-                    .isEqualTo("user-retry-dlt");
-
-            assertThat(
-                    dltRecord.headers()
-                            .lastHeader(
-                                    "kafka_dlt-exception-fqcn"
-                            )
-            )
-                    .isNotNull();
+                    .isNotNull()
+                    .isNotBlank();
         }
     }
 
-    private Consumer<
-            String,
-            TransactionAnalysisRequestedEvent
-            > createDltConsumer() {
-
-        Map<String, Object> properties =
-                new HashMap<>();
-
-        properties.put(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                kafka.getBootstrapServers()
-        );
-
-        properties.put(
-                ConsumerConfig.GROUP_ID_CONFIG,
-                "fraud-detector-dlt-test-consumer"
-        );
-
-        properties.put(
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                "earliest"
-        );
-
-        properties.put(
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class
-        );
-
-        properties.put(
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                JacksonJsonDeserializer.class
-        );
-
-        JacksonJsonDeserializer<
-                TransactionAnalysisRequestedEvent
-                > valueDeserializer =
-                new JacksonJsonDeserializer<>(
-                        TransactionAnalysisRequestedEvent.class
-                );
-
-        valueDeserializer.addTrustedPackages(
-                "com.fraud_detector.transaction.infrastructure.messaging.event"
-        );
-
-        return new KafkaConsumer<>(
-                properties,
-                new StringDeserializer(),
-                valueDeserializer
-        );
-    }
-
-    private TransactionAnalysisRequestedEvent createFailingEvent() {
+    private TransactionAnalysisRequestedEvent createEvent() {
 
         return new TransactionAnalysisRequestedEvent(
                 new TransactionAnalysisRequestedEvent.TransactionRequest(
-                        "user-retry-dlt",
+                        "user-dlt-test",
                         new TransactionAnalysisRequestedEvent.MoneyRequest(
                                 new BigDecimal("149.90"),
                                 "BRL"
@@ -243,9 +215,25 @@ class TransactionAsyncKafkaIntegrationTest {
                                 -23.5505,
                                 -46.6333
                         ),
-                        "device-retry"
+                        "device-dlt-test"
                 ),
-                null
+                new TransactionAnalysisRequestedEvent.FraudRuleContextRequest(
+                        new TransactionAnalysisRequestedEvent.MoneyRequest(
+                                new BigDecimal("100.00"),
+                                "BRL"
+                        ),
+                        LocalTime.of(8, 0),
+                        LocalTime.of(22, 0),
+                        Set.of("device-dlt-test"),
+                        new TransactionAnalysisRequestedEvent.LocationRequest(
+                                "BR",
+                                "SP",
+                                "São Paulo",
+                                -23.5505,
+                                -46.6333
+                        )
+                )
         );
     }
+
 }

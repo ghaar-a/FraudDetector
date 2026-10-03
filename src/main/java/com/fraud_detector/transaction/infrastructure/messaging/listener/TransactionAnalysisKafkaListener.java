@@ -1,9 +1,9 @@
 package com.fraud_detector.transaction.infrastructure.messaging.listener;
 
+import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.application.mapper.TransactionAnalysisMapper;
 import com.fraud_detector.transaction.domain.model.Transaction;
-import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -25,6 +25,7 @@ public class TransactionAnalysisKafkaListener {
                 transactionApplicationService,
                 "Transaction application service cannot be null"
         );
+
         this.mapper = Objects.requireNonNull(
                 mapper,
                 "Transaction analysis mapper cannot be null"
@@ -45,10 +46,14 @@ public class TransactionAnalysisKafkaListener {
         );
 
         Transaction transaction =
-                mapper.toTransaction(event.transaction());
+                mapper.toTransaction(
+                        event.transaction()
+                );
 
         FraudRuleContext context =
-                mapper.toFraudRuleContext(event.context());
+                mapper.toFraudRuleContext(
+                        event.context()
+                );
 
         transactionApplicationService.process(
                 transaction,

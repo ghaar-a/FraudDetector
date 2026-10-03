@@ -1,0 +1,28 @@
+package com.fraud_detector.transaction.infrastructure.messaging;
+
+import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.TopicBuilder;
+
+@Configuration
+public class KafkaTopicConfiguration {
+
+    @Bean
+    public NewTopic transactionAnalysisRequestsTopic() {
+        return TopicBuilder
+                .name(KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic transactionAnalysisRequestsDltTopic() {
+        return TopicBuilder
+                .name(KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+}

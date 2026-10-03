@@ -1,9 +1,6 @@
 package com.fraud_detector.transaction.infrastructure.messaging;
 
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,13 +14,8 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
-import org.springframework.util.backoff.FixedBackOff;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableKafka
@@ -44,24 +36,16 @@ public class KafkaConfiguration {
             TransactionAnalysisRequestedEvent
             > transactionAnalysisProducerFactory() {
 
-        Map<String, Object> properties = new HashMap<>();
-
-        properties.put(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapServers
+        return new DefaultKafkaProducerFactory<>(
+                java.util.Map.of(
+                        "bootstrap.servers",
+                        bootstrapServers,
+                        "key.serializer",
+                        StringSerializer.class,
+                        "value.serializer",
+                        JacksonJsonSerializer.class
+                )
         );
-
-        properties.put(
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class
-        );
-
-        properties.put(
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                JacksonJsonSerializer.class
-        );
-
-        return new DefaultKafkaProducerFactory<>(properties);
     }
 
     @Bean
@@ -85,69 +69,32 @@ public class KafkaConfiguration {
             TransactionAnalysisRequestedEvent
             > transactionAnalysisConsumerFactory() {
 
-        Map<String, Object> properties = new HashMap<>();
+        JacksonJsonDeserializer<
+                TransactionAnalysisRequestedEvent
+                > valueDeserializer =
+                new JacksonJsonDeserializer<>(
+                        TransactionAnalysisRequestedEvent.class
+                );
 
-        properties.put(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapServers
-        );
-
-        properties.put(
-                ConsumerConfig.GROUP_ID_CONFIG,
-                "fraud-detector-analysis-consumer"
-        );
-
-        properties.put(
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                "earliest"
-        );
-
-        properties.put(
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class
-        );
-
-        properties.put(
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                JacksonJsonDeserializer.class
+        valueDeserializer.addTrustedPackages(
+                "com.fraud_detector.transaction.infrastructure.messaging.event"
         );
 
         return new DefaultKafkaConsumerFactory<>(
-                properties,
+                java.util.Map.of(
+                        "bootstrap.servers",
+                        bootstrapServers,
+                        "group.id",
+                        "fraud-detector-analysis-consumer",
+                        "auto.offset.reset",
+                        "earliest",
+                        "key.deserializer",
+                        StringDeserializer.class,
+                        "value.deserializer",
+                        JacksonJsonDeserializer.class
+                ),
                 new StringDeserializer(),
-                new JacksonJsonDeserializer<>(
-                        TransactionAnalysisRequestedEvent.class
-                )
-        );
-    }
-
-    @Bean
-    public DeadLetterPublishingRecoverer transactionAnalysisDeadLetterPublishingRecoverer(
-            KafkaTemplate<
-                    String,
-                    TransactionAnalysisRequestedEvent
-                    > transactionAnalysisKafkaTemplate
-    ) {
-        return new DeadLetterPublishingRecoverer(
-                transactionAnalysisKafkaTemplate,
-                (record, exception) ->
-                        new TopicPartition(
-                                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT,
-                                record.partition()
-                        )
-        );
-    }
-
-    @Bean
-    public DefaultErrorHandler transactionAnalysisKafkaErrorHandler(
-            DeadLetterPublishingRecoverer transactionAnalysisDeadLetterPublishingRecoverer
-    ) {
-        return new DefaultErrorHandler(
-                transactionAnalysisDeadLetterPublishingRecoverer,
-                new FixedBackOff(
-                        0L,
-                        2L
-                )
+                valueDeserializer
         );
     }
 
