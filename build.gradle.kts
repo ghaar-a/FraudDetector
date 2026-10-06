@@ -23,6 +23,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-security")
 
 	// Apache Kafka
 	implementation("org.springframework.kafka:spring-kafka:4.0.7")
@@ -52,7 +53,8 @@ dependencies {
 
 	testImplementation("org.springframework.boot:spring-boot-restclient")
 	testImplementation("org.springframework.boot:spring-boot-resttestclient")
-
+	testImplementation("org.springframework.security:spring-security-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 
 	// Lombok & Suporte para execução de Testes
 	testCompileOnly("org.projectlombok:lombok")

@@ -1,0 +1,39 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses UP-TO-DATE
+> Task :test
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-10-06T06:27:55.546-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] k.c.c.i.ConsumerRebalanceListenerInvoker : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Revoke previously assigned partitions [fraud.transaction.analysis.requested-0]
+2026-10-06T06:27:55.548-03:00  WARN 77067 --- [fraud-detector] [ctor-producer-1] org.apache.kafka.clients.NetworkClient   : [Producer clientId=fraud-detector-producer-1] Connection to node -1 (localhost/127.0.0.1:32775) could not be established. Node may not be available.
+2026-10-06T06:27:55.548-03:00  WARN 77067 --- [fraud-detector] [ctor-producer-1] org.apache.kafka.clients.NetworkClient   : [Producer clientId=fraud-detector-producer-1] Bootstrap broker localhost:32775 (id: -1 rack: null isFenced: false) disconnected
+2026-10-06T06:27:55.551-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : fraud-detector-analysis-consumer: partitions revoked: [fraud.transaction.analysis.requested-0]
+2026-10-06T06:27:55.552-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-06T06:27:55.553-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Request joining group due to: consumer pro-actively leaving the group
+2026-10-06T06:27:55.553-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Unsubscribed all topics or patterns and assigned partitions
+2026-10-06T06:27:55.556-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-06T06:27:55.556-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Request joining group due to: consumer pro-actively leaving the group
+2026-10-06T06:27:55.560-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node 1 disconnected.
+2026-10-06T06:27:55.563-03:00  WARN 77067 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node 1 (localhost/127.0.0.1:32775) could not be established. Node may not be available.
+2026-10-06T06:27:55.572-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-06T06:27:55.579-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-06T06:27:55.580-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-06T06:27:55.580-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-06T06:27:55.696-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-fraud-detector-analysis-consumer-1 unregistered
+2026-10-06T06:27:55.697-03:00  INFO 77067 --- [fraud-detector] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : fraud-detector-analysis-consumer: Consumer stopped
+2026-10-06T06:27:55.702-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=fraud-detector-producer-1] Closing the Kafka producer with timeoutMillis = 30000 ms.
+2026-10-06T06:27:55.783-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-06T06:27:55.787-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-06T06:27:55.787-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-06T06:27:55.789-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-06T06:27:55.791-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] o.a.kafka.common.utils.AppInfoParser     : App info kafka.producer for fraud-detector-producer-1 unregistered
+2026-10-06T06:27:55.932-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-06T06:27:55.959-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-06T06:27:56.005-03:00  INFO 77067 --- [fraud-detector] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+
+BUILD SUCCESSFUL in 1m 44s
+5 actionable tasks: 1 executed, 4 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html

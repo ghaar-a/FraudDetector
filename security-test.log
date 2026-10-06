@@ -1,0 +1,387 @@
+Initialized native services in: /home/tr/.gradle/native
+Initialized jansi services in: /home/tr/.gradle/native
+Removing 1 daemon stop events from registry
+Starting a Gradle Daemon (subsequent builds will be faster)
+Starting process 'Gradle build daemon'. Working directory: /home/tr/.gradle/daemon/9.5.1 Command: /usr/lib/jvm/java-21-openjdk-amd64/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError -Xms256m -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -cp /home/tr/.gradle/wrapper/dists/gradle-9.5.1-bin/iq79hdu3mqx29lgffhp8bfmx/gradle-9.5.1/lib/gradle-daemon-main-9.5.1.jar -javaagent:/home/tr/.gradle/wrapper/dists/gradle-9.5.1-bin/iq79hdu3mqx29lgffhp8bfmx/gradle-9.5.1/lib/agents/gradle-instrumentation-agent-9.5.1.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.5.1
+Successfully started process 'Gradle build daemon'
+An attempt to start the daemon took 9.986 secs.
+The client will now receive all logging from the daemon (pid: 22024). The daemon log file: /home/tr/.gradle/daemon/9.5.1/daemon-22024.out.log
+Starting build in new daemon [memory: 512 MiB]
+Using 4 worker leases.
+Operational build model parameters: {cachingModelBuilding=false, configurationCache=false, configurationCacheDisabledReason=null, configurationCacheParallelLoad=false, configurationCacheParallelStore=false, configureOnDemand=false, invalidateCoupledProjects=false, isolatedProjects=false, modelAsProjectDependency=false, modelBuilding=false, parallelModelBuilding=false, parallelProjectConfiguration=false, parallelProjectExecution=false, resilientModelBuilding=false}
+Received JVM installation metadata from '/usr/lib/jvm/java-21-openjdk-amd64': {JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64, JAVA_VERSION=21.0.12.1, JAVA_VENDOR=Ubuntu, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.12.1+1-1-22.04.4-Ubuntu, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.12.1+1-1-22.04.4-Ubuntu, VM_VENDOR=Ubuntu, OS_ARCH=amd64}
+Watching the file system is configured to be enabled if available
+Now considering [/media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector] as hierarchies to watch
+File system watching is active
+Starting Build
+Settings evaluated using settings file '/media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/settings.gradle.kts'.
+Projects loaded. Root project using build file '/media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/build.gradle.kts'.
+Included projects: [root project 'fraud-detector']
+
+> Configure project :
+Evaluating root project 'fraud-detector' using build file '/media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/build.gradle.kts'.
+Resolved plugin [id: 'org.gradle.java']
+Resolved plugin [id: 'org.springframework.boot', version: '4.0.7']
+Resolved plugin [id: 'io.spring.dependency-management', version: '1.1.7']
+Applying dependency management to configuration 'annotationProcessor' in project 'fraud-detector'
+Applying dependency management to configuration 'apiElements' in project 'fraud-detector'
+Applying dependency management to configuration 'archives' in project 'fraud-detector'
+Applying dependency management to configuration 'bootArchives' in project 'fraud-detector'
+Applying dependency management to configuration 'compileClasspath' in project 'fraud-detector'
+Applying dependency management to configuration 'compileOnly' in project 'fraud-detector'
+Applying dependency management to configuration 'default' in project 'fraud-detector'
+Applying dependency management to configuration 'developmentOnly' in project 'fraud-detector'
+Applying dependency management to configuration 'implementation' in project 'fraud-detector'
+Applying dependency management to configuration 'mainSourceElements' in project 'fraud-detector'
+Applying dependency management to configuration 'productionRuntimeClasspath' in project 'fraud-detector'
+Applying dependency management to configuration 'runtimeClasspath' in project 'fraud-detector'
+Applying dependency management to configuration 'runtimeElements' in project 'fraud-detector'
+Applying dependency management to configuration 'runtimeOnly' in project 'fraud-detector'
+Applying dependency management to configuration 'testAndDevelopmentOnly' in project 'fraud-detector'
+Applying dependency management to configuration 'testAnnotationProcessor' in project 'fraud-detector'
+Applying dependency management to configuration 'testCompileClasspath' in project 'fraud-detector'
+Applying dependency management to configuration 'testCompileOnly' in project 'fraud-detector'
+Applying dependency management to configuration 'testImplementation' in project 'fraud-detector'
+Applying dependency management to configuration 'testResultsElementsForTest' in project 'fraud-detector'
+Applying dependency management to configuration 'testRuntimeClasspath' in project 'fraud-detector'
+Applying dependency management to configuration 'testRuntimeOnly' in project 'fraud-detector'
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Path for java installation '/usr/lib/jvm/openjdk-21' (Common Linux Locations) auto-detected does not contain a java executable
+Path for java installation '/usr/lib/jvm/openjdk-11' (Common Linux Locations) auto-detected does not contain a java executable
+Starting process 'command '/usr/lib/jvm/java-11-openjdk-amd64/bin/java''. Working directory: /home/tr/.gradle/.tmp/tmp-jvm905796133450788243probe Command: /usr/lib/jvm/java-11-openjdk-amd64/bin/java -Xmx32m -Xms32m -cp . JavaProbe
+Successfully started process 'command '/usr/lib/jvm/java-11-openjdk-amd64/bin/java''
+Received JVM installation metadata from '/usr/lib/jvm/java-11-openjdk-amd64': {JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64, JAVA_VERSION=11.0.32.1, JAVA_VENDOR=Ubuntu, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu, VM_VENDOR=Ubuntu, OS_ARCH=amd64}
+Starting process 'command '/home/tr/.jdks/openjdk-21.0.1/bin/java''. Working directory: /home/tr/.gradle/.tmp/tmp-jvm9703172225153007353probe Command: /home/tr/.jdks/openjdk-21.0.1/bin/java -Xmx32m -Xms32m -cp . JavaProbe
+Successfully started process 'command '/home/tr/.jdks/openjdk-21.0.1/bin/java''
+Received JVM installation metadata from '/home/tr/.jdks/openjdk-21.0.1': {JAVA_HOME=/home/tr/.jdks/openjdk-21.0.1, JAVA_VERSION=21.0.1, JAVA_VENDOR=Oracle Corporation, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.1+12-29, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.1+12-29, VM_VENDOR=Oracle Corporation, OS_ARCH=amd64}
+Resolving global dependency management for project 'fraud-detector'
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Tasks to be executed: [task ':compileJava', task ':processResources', task ':classes', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :compileJava (Thread[#61,Execution worker,5,main]) started.
+:compileJava (Thread[#60,included builds,5,main]) started.
+
+> Task :compileJava UP-TO-DATE
+Custom actions are attached to task ':compileJava'.
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Skipping task ':compileJava' as it is up-to-date.
+Resolve mutations for :processResources (Thread[#62,Execution worker Thread 2,5,main]) started.
+:processResources (Thread[#62,Execution worker Thread 2,5,main]) started.
+
+> Task :processResources UP-TO-DATE
+Caching disabled for task ':processResources' because:
+  Build cache is disabled
+  Not worth caching
+Skipping task ':processResources' as it is up-to-date.
+Resolve mutations for :classes (Thread[#60,included builds,5,main]) started.
+:classes (Thread[#60,included builds,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :compileTestJava (Thread[#60,included builds,5,main]) started.
+:compileTestJava (Thread[#60,included builds,5,main]) started.
+
+> Task :compileTestJava UP-TO-DATE
+Custom actions are attached to task ':compileTestJava'.
+Caching disabled for task ':compileTestJava' because:
+  Build cache is disabled
+Skipping task ':compileTestJava' as it is up-to-date.
+Resolve mutations for :processTestResources (Thread[#61,Execution worker,5,main]) started.
+:processTestResources (Thread[#61,Execution worker,5,main]) started.
+
+> Task :processTestResources NO-SOURCE
+Skipping task ':processTestResources' as it has no source files and no previous output files.
+Resolve mutations for :testClasses (Thread[#60,included builds,5,main]) started.
+:testClasses (Thread[#63,Execution worker Thread 3,5,main]) started.
+
+> Task :testClasses UP-TO-DATE
+Skipping task ':testClasses' as it has no actions.
+Resolve mutations for :test (Thread[#63,Execution worker Thread 3,5,main]) started.
+:test (Thread[#63,Execution worker Thread 3,5,main]) started.
+
+> Task :test
+Caching disabled for task ':test' because:
+  Build cache is disabled
+Task ':test' is not up-to-date because:
+  Value of input property 'filter.commandLineIncludePatterns' has changed for task ':test'
+Starting process 'Gradle Test Executor 1'. Working directory: /media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector Command: /usr/lib/jvm/java-21-openjdk-amd64/bin/java -Dorg.gradle.internal.worker.tmpdir=/media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/build/tmp/test/work @/home/tr/.gradle/.tmp/gradle-worker-classpath16092285260842914699txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 1'
+Successfully started process 'Gradle Test Executor 1'
+
+Gradle Test Executor 1 started executing tests.
+
+> Task :test
+
+SecurityConfigurationTest STANDARD_OUT
+    05:18:05.933 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.fraud_detector.security.SecurityConfigurationTest]: SecurityConfigurationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+    05:18:06.299 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.fraud_detector.FraudDetectorApplication for test class com.fraud_detector.security.SecurityConfigurationTest
+    05:18:06.481 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.fraud_detector.security.SecurityConfigurationTest]: SecurityConfigurationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+    05:18:06.499 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.fraud_detector.FraudDetectorApplication for test class com.fraud_detector.security.SecurityConfigurationTest
+
+      .   ____          _            __ _ _
+     /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+    ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+     \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+      '  |____| .__|_| |_|_| |_\__, | / / / /
+     =========|_|==============|___/=/_/_/_/
+
+     :: Spring Boot ::                (v4.0.7)
+
+    2026-10-06T05:18:07.531-03:00  INFO 22724 --- [fraud-detector] [    Test worker] c.f.security.SecurityConfigurationTest   : Starting SecurityConfigurationTest using Java 21.0.12.1 with PID 22724 (started by tr in /media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector)
+    2026-10-06T05:18:07.543-03:00 DEBUG 22724 --- [fraud-detector] [    Test worker] c.f.security.SecurityConfigurationTest   : Running with Spring Boot v4.0.7, Spring v7.0.8
+    2026-10-06T05:18:07.544-03:00  INFO 22724 --- [fraud-detector] [    Test worker] c.f.security.SecurityConfigurationTest   : The following 1 profile is active: "test"
+    2026-10-06T05:18:11.032-03:00  INFO 22724 --- [fraud-detector] [    Test worker] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+    2026-10-06T05:18:11.311-03:00  INFO 22724 --- [fraud-detector] [    Test worker] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 180 ms. Found 2 JPA repository interfaces.
+    2026-10-06T05:18:13.313-03:00  INFO 22724 --- [fraud-detector] [    Test worker] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+    2026-10-06T05:18:14.457-03:00  INFO 22724 --- [fraud-detector] [    Test worker] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4687366b
+    2026-10-06T05:18:14.463-03:00  INFO 22724 --- [fraud-detector] [    Test worker] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+    2026-10-06T05:18:14.599-03:00  INFO 22724 --- [fraud-detector] [    Test worker] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/frauddetector (PostgreSQL 16.14)
+    2026-10-06T05:18:14.876-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.156s)
+    2026-10-06T05:18:14.931-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 3
+    2026-10-06T05:18:14.944-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+    2026-10-06T05:18:15.680-03:00  INFO 22724 --- [fraud-detector] [    Test worker] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+    2026-10-06T05:18:16.088-03:00  INFO 22724 --- [fraud-detector] [    Test worker] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.19.Final
+    2026-10-06T05:18:19.005-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+    2026-10-06T05:18:19.615-03:00  INFO 22724 --- [fraud-detector] [    Test worker] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+    	Database JDBC URL [jdbc:postgresql://localhost:5432/frauddetector]
+    	Database driver: PostgreSQL JDBC Driver
+    	Database dialect: PostgreSQLDialect
+    	Database version: 16.14
+    	Default catalog/schema: frauddetector/public
+    	Autocommit mode: undefined/unknown
+    	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+    	JDBC fetch size: none
+    	Pool: DataSourceConnectionProvider
+    	Minimum pool size: undefined/unknown
+    	Maximum pool size: undefined/unknown
+    2026-10-06T05:18:23.480-03:00  INFO 22724 --- [fraud-detector] [    Test worker] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+    2026-10-06T05:18:23.643-03:00  INFO 22724 --- [fraud-detector] [    Test worker] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+    2026-10-06T05:18:24.254-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+    2026-10-06T05:18:28.371-03:00  INFO 22724 --- [fraud-detector] [    Test worker] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
+    2026-10-06T05:18:32.135-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+    2026-10-06T05:18:32.136-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+    2026-10-06T05:18:32.166-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+    2026-10-06T05:18:32.201-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 65 ms
+    2026-10-06T05:18:32.698-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.kafka.common.config.AbstractConfig   : ConsumerConfig values: 
+    	allow.auto.create.topics = true
+    	auto.commit.interval.ms = 5000
+    	auto.offset.reset = earliest
+    	bootstrap.servers = [localhost:9092]
+    	check.crcs = true
+    	client.dns.lookup = use_all_dns_ips
+    	client.id = consumer-fraud-detector-analysis-consumer-1
+    	client.rack = 
+    	connections.max.idle.ms = 540000
+    	default.api.timeout.ms = 60000
+    	enable.auto.commit = false
+    	enable.metrics.push = true
+    	exclude.internal.topics = true
+    	fetch.max.bytes = 52428800
+    	fetch.max.wait.ms = 500
+    	fetch.min.bytes = 1
+    	group.id = fraud-detector-analysis-consumer
+    	group.instance.id = null
+    	group.protocol = classic
+    	group.remote.assignor = null
+    	heartbeat.interval.ms = 3000
+    	interceptor.classes = []
+    	internal.leave.group.on.close = true
+    	internal.throw.on.fetch.stable.offset.unsupported = false
+    	isolation.level = read_uncommitted
+    	key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+    	max.partition.fetch.bytes = 1048576
+    	max.poll.interval.ms = 300000
+    	max.poll.records = 500
+    	metadata.max.age.ms = 300000
+    	metadata.recovery.rebootstrap.trigger.ms = 300000
+    	metadata.recovery.strategy = rebootstrap
+    	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+    	metrics.num.samples = 2
+    	metrics.recording.level = INFO
+    	metrics.sample.window.ms = 30000
+    	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+    	receive.buffer.bytes = 65536
+    	reconnect.backoff.max.ms = 1000
+    	reconnect.backoff.ms = 50
+    	request.timeout.ms = 30000
+    	retry.backoff.max.ms = 1000
+    	retry.backoff.ms = 100
+    	sasl.client.callback.handler.class = null
+    	sasl.jaas.config = null
+    	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+    	sasl.kerberos.min.time.before.relogin = 60000
+    	sasl.kerberos.service.name = null
+    	sasl.kerberos.ticket.renew.jitter = 0.05
+    	sasl.kerberos.ticket.renew.window.factor = 0.8
+    	sasl.login.callback.handler.class = null
+    	sasl.login.class = null
+    	sasl.login.connect.timeout.ms = null
+    	sasl.login.read.timeout.ms = null
+    	sasl.login.refresh.buffer.seconds = 300
+    	sasl.login.refresh.min.period.seconds = 60
+    	sasl.login.refresh.window.factor = 0.8
+    	sasl.login.refresh.window.jitter = 0.05
+    	sasl.login.retry.backoff.max.ms = 10000
+    	sasl.login.retry.backoff.ms = 100
+    	sasl.mechanism = GSSAPI
+    	sasl.oauthbearer.assertion.algorithm = RS256
+    	sasl.oauthbearer.assertion.claim.aud = null
+    	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+    	sasl.oauthbearer.assertion.claim.iss = null
+    	sasl.oauthbearer.assertion.claim.jti.include = false
+    	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+    	sasl.oauthbearer.assertion.claim.sub = null
+    	sasl.oauthbearer.assertion.file = null
+    	sasl.oauthbearer.assertion.private.key.file = null
+    	sasl.oauthbearer.assertion.private.key.passphrase = null
+    	sasl.oauthbearer.assertion.template.file = null
+    	sasl.oauthbearer.client.credentials.client.id = null
+    	sasl.oauthbearer.client.credentials.client.secret = null
+    	sasl.oauthbearer.clock.skew.seconds = 30
+    	sasl.oauthbearer.expected.audience = null
+    	sasl.oauthbearer.expected.issuer = null
+    	sasl.oauthbearer.header.urlencode = false
+    	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+    	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+    	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+    	sasl.oauthbearer.jwks.endpoint.url = null
+    	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+    	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+    	sasl.oauthbearer.scope = null
+    	sasl.oauthbearer.scope.claim.name = scope
+    	sasl.oauthbearer.sub.claim.name = sub
+    	sasl.oauthbearer.token.endpoint.url = null
+    	security.protocol = PLAINTEXT
+    	security.providers = null
+    	send.buffer.bytes = 131072
+    	session.timeout.ms = 45000
+    	share.acknowledgement.mode = implicit
+    	socket.connection.setup.timeout.max.ms = 30000
+    	socket.connection.setup.timeout.ms = 10000
+    	ssl.cipher.suites = null
+    	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+    	ssl.endpoint.identification.algorithm = https
+    	ssl.engine.factory.class = null
+    	ssl.key.password = null
+    	ssl.keymanager.algorithm = SunX509
+    	ssl.keystore.certificate.chain = null
+    	ssl.keystore.key = null
+    	ssl.keystore.location = null
+    	ssl.keystore.password = null
+    	ssl.keystore.type = JKS
+    	ssl.protocol = TLSv1.3
+    	ssl.provider = null
+    	ssl.secure.random.implementation = null
+    	ssl.trustmanager.algorithm = PKIX
+    	ssl.truststore.certificates = null
+    	ssl.truststore.location = null
+    	ssl.truststore.password = null
+    	ssl.truststore.type = JKS
+    	value.deserializer = class org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+
+    2026-10-06T05:18:32.842-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+    2026-10-06T05:18:33.161-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.1.2
+    2026-10-06T05:18:33.161-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c82fd9b934b4c1e6
+    2026-10-06T05:18:33.162-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1791274713159
+    2026-10-06T05:18:33.169-03:00  INFO 22724 --- [fraud-detector] [    Test worker] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Subscribed to topic(s): fraud.transaction.analysis.requested
+    2026-10-06T05:18:33.218-03:00  INFO 22724 --- [fraud-detector] [    Test worker] c.f.security.SecurityConfigurationTest   : Started SecurityConfigurationTest in 26.542 seconds (process running for 31.191)
+
+SecurityConfigurationTest > shouldAllowPublicHealthEndpoint() STANDARD_ERROR
+    Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+    WARNING: A Java agent has been loaded dynamically (/home/tr/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.17.8/f09415827a71be7ed621c7bd02550678f28bc81c/byte-buddy-agent-1.17.8.jar)
+    WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+    WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+    WARNING: Dynamic loading of agents will be disallowed by default in a future release
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Gradle Test Executor 1 finished executing tests.
+2026-10-06T05:18:35.473-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-06T05:18:35.474-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Request joining group due to: consumer pro-actively leaving the group
+2026-10-06T05:18:35.474-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Unsubscribed all topics or patterns and assigned partitions
+2026-10-06T05:18:35.482-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-06T05:18:35.483-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Request joining group due to: consumer pro-actively leaving the group
+2026-10-06T05:18:35.493-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-06T05:18:35.493-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-06T05:18:35.493-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-06T05:18:35.494-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-06T05:18:35.513-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-fraud-detector-analysis-consumer-1 unregistered
+2026-10-06T05:18:35.515-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : fraud-detector-analysis-consumer: Consumer stopped
+2026-10-06T05:18:35.527-03:00  INFO 22724 --- [fraud-detector] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-06T05:18:35.531-03:00  INFO 22724 --- [fraud-detector] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-06T05:18:35.543-03:00  INFO 22724 --- [fraud-detector] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+
+> Task :test
+
+SecurityConfigurationTest > shouldAllowPublicHealthEndpoint() STANDARD_OUT
+    2026-10-06T05:18:34.024-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node -1 disconnected.
+    2026-10-06T05:18:34.025-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+    2026-10-06T05:18:34.038-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+    2026-10-06T05:18:34.170-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node -1 disconnected.
+    2026-10-06T05:18:34.173-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+    2026-10-06T05:18:34.174-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+    2026-10-06T05:18:34.278-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node -1 disconnected.
+    2026-10-06T05:18:34.279-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+    2026-10-06T05:18:34.279-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+    2026-10-06T05:18:34.395-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Rebootstrapping with [localhost/127.0.0.1:9092]
+    2026-10-06T05:18:34.446-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Rebootstrapping with [localhost/127.0.0.1:9092]
+
+SecurityConfigurationTest > shouldAllowProtectedEndpointWithValidCredentials() STANDARD_OUT
+    2026-10-06T05:18:34.629-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node -1 disconnected.
+    2026-10-06T05:18:34.629-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+    2026-10-06T05:18:34.629-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+
+    MockHttpServletRequest:
+          HTTP Method = GET
+          Request URI = /api/transactions
+           Parameters = {}
+              Headers = [Authorization:"Basic ZnJhdWQtZGV0ZWN0b3I6Y2hhbmdlLW1l"]
+                 Body = null
+        Session Attrs = {}
+
+    Handler:
+                 Type = org.springframework.web.servlet.resource.ResourceHttpRequestHandler
+
+    Async:
+        Async started = false
+         Async result = null
+
+    Resolved Exception:
+                 Type = org.springframework.web.servlet.resource.NoResourceFoundException
+
+    ModelAndView:
+            View name = null
+                 View = null
+                Model = null
+
+    FlashMap:
+           Attributes = null
+
+    MockHttpServletResponse:
+               Status = 500
+        Error message = null
+              Headers = [Content-Type:"application/json", X-Content-Type-Options:"nosniff", X-XSS-Protection:"0", Cache-Control:"no-cache, no-store, max-age=0, must-revalidate", Pragma:"no-cache", Expires:"0", X-Frame-Options:"DENY"]
+         Content type = application/json
+                 Body = {"timestamp":"2026-10-06T08:18:34.855391591Z","status":500,"error":"Internal Server Error","message":"Unexpected error","path":"/api/transactions","fieldErrors":[]}
+        Forwarded URL = null
+       Redirected URL = null
+              Cookies = []
+
+SecurityConfigurationTest > shouldRejectProtectedEndpointWithInvalidCredentials() STANDARD_OUT
+    2026-10-06T05:18:35.035-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Rebootstrapping with [localhost/127.0.0.1:9092]
+    2026-10-06T05:18:35.088-03:00  INFO 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Node -1 disconnected.
+    2026-10-06T05:18:35.089-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+    2026-10-06T05:18:35.092-03:00  WARN 22724 --- [fraud-detector] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-fraud-detector-analysis-consumer-1, groupId=fraud-detector-analysis-consumer] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+Generating HTML test report...
+Finished generating test html results (0.081 secs) into: /media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/build/reports/tests/test
+Finished generating test XML results (0.033 secs) into: /media/tr/fdae8789-e31f-4dee-80ee-c6312afcee65/1.Java/fraud-detector/build/test-results/test
+
+BUILD SUCCESSFUL in 1m 45s
+4 actionable tasks: 1 executed, 3 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html
