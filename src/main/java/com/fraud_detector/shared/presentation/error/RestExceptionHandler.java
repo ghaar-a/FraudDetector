@@ -1,17 +1,21 @@
 package com.fraud_detector.shared.presentation.error;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 
 @RestControllerAdvice
@@ -26,22 +30,20 @@ public class RestExceptionHandler {
                 .getBindingResult()
                 .getFieldErrors()
                 .stream()
+                .sorted(
+                        Comparator.comparing(
+                                FieldError::getField
+                        )
+                )
                 .map(this::toFieldError)
                 .toList();
 
-        ApiErrorResponse body = new ApiErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
                 "Validation failed",
-                request.getRequestURI(),
+                request,
                 fieldErrors
         );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .headers(HttpHeaders.EMPTY)
-                .body(body);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -49,19 +51,12 @@ public class RestExceptionHandler {
             HttpMessageNotReadableException exception,
             HttpServletRequest request
     ) {
-        ApiErrorResponse body = new ApiErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
                 "Malformed JSON request",
-                request.getRequestURI(),
+                request,
                 List.of()
         );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .headers(HttpHeaders.EMPTY)
-                .body(body);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -69,19 +64,52 @@ public class RestExceptionHandler {
             ConstraintViolationException exception,
             HttpServletRequest request
     ) {
-        ApiErrorResponse body = new ApiErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                exception.getMessage(),
-                request.getRequestURI(),
+        List<FieldErrorResponse> fieldErrors = exception
+                .getConstraintViolations()
+                .stream()
+                .sorted(
+                        Comparator.comparing(
+                                violation ->
+                                        violation
+                                                .getPropertyPath()
+                                                .toString()
+                        )
+                )
+                .map(this::toConstraintViolationError)
+                .toList();
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Validation failed",
+                request,
+                fieldErrors
+        );
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "HTTP method not supported",
+                request,
                 List.of()
         );
+    }
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .headers(HttpHeaders.EMPTY)
-                .body(body);
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Content type not supported",
+                request,
+                List.of()
+        );
     }
 
     @ExceptionHandler(Exception.class)
@@ -89,26 +117,52 @@ public class RestExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Unexpected error",
+                request,
+                List.of()
+        );
+    }
+
+    private ResponseEntity<ApiErrorResponse> buildResponse(
+            HttpStatus status,
+            String message,
+            HttpServletRequest request,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                "Unexpected error",
+                status.value(),
+                status.getReasonPhrase(),
+                message,
                 request.getRequestURI(),
-                List.of()
+                fieldErrors
         );
 
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .status(status)
                 .headers(HttpHeaders.EMPTY)
                 .body(body);
     }
 
-    private FieldErrorResponse toFieldError(FieldError fieldError) {
+    private FieldErrorResponse toFieldError(
+            FieldError fieldError
+    ) {
         return new FieldErrorResponse(
                 fieldError.getField(),
                 fieldError.getDefaultMessage(),
                 fieldError.getRejectedValue()
+        );
+    }
+
+    private FieldErrorResponse toConstraintViolationError(
+            ConstraintViolation<?> violation
+    ) {
+        return new FieldErrorResponse(
+                violation.getPropertyPath().toString(),
+                violation.getMessage(),
+                violation.getInvalidValue()
         );
     }
 }

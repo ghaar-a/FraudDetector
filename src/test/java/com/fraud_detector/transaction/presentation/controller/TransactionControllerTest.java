@@ -7,6 +7,7 @@ import com.fraud_detector.fraud.domain.model.FraudReason;
 import com.fraud_detector.fraud.domain.model.RiskLevel;
 import com.fraud_detector.fraud.domain.model.RiskScore;
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+import com.fraud_detector.shared.presentation.error.RestExceptionHandler;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.domain.model.Money;
 import com.fraud_detector.transaction.domain.model.Transaction;
@@ -56,6 +57,9 @@ class TransactionControllerTest {
                                 new TransactionController(
                                         transactionApplicationService
                                 )
+                        )
+                        .setControllerAdvice(
+                                new RestExceptionHandler()
                         )
                         .build();
     }
@@ -199,6 +203,121 @@ class TransactionControllerTest {
                                 -23.5505,
                                 -46.6333
                         )
+                );
+    }
+
+    @Test
+    void shouldRejectInvalidTransactionRequest() throws Exception {
+        String requestBody = """
+                {
+                  "transaction": {
+                    "userId": "",
+                    "amount": {
+                      "amount": -10.00,
+                      "currency": "brl"
+                    },
+                    "merchant": "",
+                    "category": null,
+                    "timestamp": null,
+                    "location": {
+                      "country": "Brazil",
+                      "state": "SP",
+                      "city": "",
+                      "latitude": 120.0,
+                      "longitude": -200.0
+                    },
+                    "deviceId": ""
+                  },
+                  "context": {
+                    "averageTransactionAmount": {
+                      "amount": 0,
+                      "currency": "BRL"
+                    },
+                    "usualStartTime": null,
+                    "usualEndTime": null,
+                    "knownDeviceIds": [],
+                    "usualLocation": null
+                  }
+                }
+                """;
+
+        mockMvc.perform(
+                        post("/api/v1/transactions/analyze")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(
+                        jsonPath("$.path")
+                                .value("/api/v1/transactions/analyze")
+                )
+                .andExpect(jsonPath("$.fieldErrors").isArray())
+                .andExpect(
+                        jsonPath("$.fieldErrors.length()")
+                                .value(org.hamcrest.Matchers.greaterThan(0))
+                );
+
+        org.mockito.Mockito.verifyNoInteractions(
+                transactionApplicationService
+        );
+    }
+
+    @Test
+    void shouldRejectMalformedJson() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/transactions/analyze")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{ invalid-json")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Malformed JSON request")
+                )
+                .andExpect(
+                        jsonPath("$.path")
+                                .value("/api/v1/transactions/analyze")
+                );
+
+        org.mockito.Mockito.verifyNoInteractions(
+                transactionApplicationService
+        );
+    }
+
+    @Test
+    void shouldReturnInternalServerErrorForUnexpectedException()
+            throws Exception {
+
+        when(
+                transactionApplicationService.process(
+                        any(Transaction.class),
+                        any(FraudRuleContext.class)
+                )
+        ).thenThrow(
+                new IllegalStateException(
+                        "Internal implementation detail"
+                )
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/transactions/analyze")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                createRequest()
+                                        )
+                                )
+                )
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Unexpected error")
                 );
     }
 
