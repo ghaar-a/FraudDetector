@@ -1,5 +1,6 @@
 package com.fraud_detector.shared.presentation.error;
 
+import com.fraud_detector.transaction.application.IdempotencyKeyConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -10,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -30,11 +32,7 @@ public class RestExceptionHandler {
                 .getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .sorted(
-                        Comparator.comparing(
-                                FieldError::getField
-                        )
-                )
+                .sorted(Comparator.comparing(FieldError::getField))
                 .map(this::toFieldError)
                 .toList();
 
@@ -59,6 +57,46 @@ public class RestExceptionHandler {
         );
     }
 
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingRequestHeader(
+            MissingRequestHeaderException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Required request header is missing: "
+                        + exception.getHeaderName(),
+                request,
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(IdempotencyKeyConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleIdempotencyKeyConflict(
+            IdempotencyKeyConflictException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Idempotency key has already been used with a different request",
+                request,
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Invalid request",
+                request,
+                List.of()
+        );
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
             ConstraintViolationException exception,
@@ -69,10 +107,9 @@ public class RestExceptionHandler {
                 .stream()
                 .sorted(
                         Comparator.comparing(
-                                violation ->
-                                        violation
-                                                .getPropertyPath()
-                                                .toString()
+                                violation -> violation
+                                        .getPropertyPath()
+                                        .toString()
                         )
                 )
                 .map(this::toConstraintViolationError)
@@ -146,9 +183,7 @@ public class RestExceptionHandler {
                 .body(body);
     }
 
-    private FieldErrorResponse toFieldError(
-            FieldError fieldError
-    ) {
+    private FieldErrorResponse toFieldError(FieldError fieldError) {
         return new FieldErrorResponse(
                 fieldError.getField(),
                 fieldError.getDefaultMessage(),

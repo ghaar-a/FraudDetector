@@ -3,6 +3,7 @@ package com.fraud_detector.transaction.presentation.controller;
 import com.fraud_detector.fraud.domain.model.FraudAnalysis;
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
 import com.fraud_detector.shared.presentation.error.ApiErrorResponse;
+import com.fraud_detector.transaction.application.IdempotencyFingerprint;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.domain.model.Money;
 import com.fraud_detector.transaction.domain.model.Transaction;
@@ -67,14 +68,23 @@ public class TransactionController {
             )
     })
     public ResponseEntity<FraudAnalysisResponse> analyze(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransactionAnalysisRequest request
     ) {
+        if (idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Idempotency-Key must contain between 1 and 100 characters."
+            );
+        }
+
         Transaction transaction = toTransaction(request.transaction());
         FraudRuleContext context = toFraudRuleContext(request.context());
 
         FraudAnalysis analysis = transactionApplicationService.process(
                 transaction,
-                context
+                context,
+                idempotencyKey,
+                IdempotencyFingerprint.calculate(request)
         );
 
         return ResponseEntity.ok(toResponse(analysis));

@@ -1,6 +1,7 @@
 package com.fraud_detector.transaction.application.mapper;
 
 import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+import com.fraud_detector.transaction.application.IdempotencyFingerprint;
 import com.fraud_detector.transaction.domain.model.Money;
 import com.fraud_detector.transaction.domain.model.Transaction;
 import com.fraud_detector.transaction.domain.model.TransactionLocation;
@@ -9,6 +10,7 @@ import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisReques
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @Component
 public class TransactionAnalysisMapper {
@@ -16,9 +18,27 @@ public class TransactionAnalysisMapper {
     public TransactionAnalysisRequestedEvent toRequestedEvent(
             TransactionAnalysisRequest request
     ) {
+        return toRequestedEvent(request, null);
+    }
+
+    public TransactionAnalysisRequestedEvent toRequestedEvent(
+            TransactionAnalysisRequest request,
+            String idempotencyKey
+    ) {
+        Objects.requireNonNull(
+                request,
+                "Transaction analysis request cannot be null"
+        );
+
+        String fingerprint = idempotencyKey == null
+                ? null
+                : IdempotencyFingerprint.calculate(request);
+
         return new TransactionAnalysisRequestedEvent(
                 toRequestedTransaction(request.transaction()),
-                toRequestedContext(request.context())
+                toRequestedContext(request.context()),
+                idempotencyKey,
+                fingerprint
         );
     }
 
@@ -66,13 +86,7 @@ public class TransactionAnalysisMapper {
                 request.merchant(),
                 request.category(),
                 request.timestamp(),
-                new TransactionAnalysisRequestedEvent.LocationRequest(
-                        request.location().country(),
-                        request.location().state(),
-                        request.location().city(),
-                        request.location().latitude(),
-                        request.location().longitude()
-                ),
+                toRequestedLocation(request.location()),
                 request.deviceId()
         );
     }
@@ -88,13 +102,19 @@ public class TransactionAnalysisMapper {
                 request.usualStartTime(),
                 request.usualEndTime(),
                 request.knownDeviceIds(),
-                new TransactionAnalysisRequestedEvent.LocationRequest(
-                        request.usualLocation().country(),
-                        request.usualLocation().state(),
-                        request.usualLocation().city(),
-                        request.usualLocation().latitude(),
-                        request.usualLocation().longitude()
-                )
+                toRequestedLocation(request.usualLocation())
+        );
+    }
+
+    private TransactionAnalysisRequestedEvent.LocationRequest toRequestedLocation(
+            TransactionAnalysisRequest.LocationRequest location
+    ) {
+        return new TransactionAnalysisRequestedEvent.LocationRequest(
+                location.country(),
+                location.state(),
+                location.city(),
+                location.latitude(),
+                location.longitude()
         );
     }
 

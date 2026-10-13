@@ -28,89 +28,48 @@ public class TransactionEntity {
     @Id
     private UUID id;
 
-    @Column(
-            name = "user_id",
-            nullable = false,
-            length = 100
-    )
+    @Column(name = "user_id", nullable = false, length = 100)
     private String userId;
 
-    @Column(
-            name = "amount",
-            nullable = false,
-            precision = 19,
-            scale = 4
-    )
+    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 
-    @Column(
-            name = "currency",
-            nullable = false,
-            length = 3
-    )
+    @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
-    @Column(
-            name = "merchant_name",
-            nullable = false,
-            length = 255
-    )
+    @Column(name = "merchant_name", nullable = false, length = 255)
     private String merchant;
 
     @Enumerated(EnumType.STRING)
-    @Column(
-            name = "category",
-            nullable = false,
-            length = 50
-    )
+    @Column(name = "category", nullable = false, length = 50)
     private TransactionCategory category;
 
-    @Column(
-            name = "transaction_timestamp",
-            nullable = false
-    )
+    @Column(name = "transaction_timestamp", nullable = false)
     private Instant transactionTimestamp;
 
-    @Column(
-            name = "country",
-            nullable = false,
-            length = 2
-    )
+    @Column(name = "country", nullable = false, length = 2)
     private String country;
 
-    @Column(
-            name = "state",
-            length = 100
-    )
+    @Column(name = "state", length = 100)
     private String state;
 
-    @Column(
-            name = "city",
-            nullable = false,
-            length = 150
-    )
+    @Column(name = "city", nullable = false, length = 150)
     private String city;
 
-    @Column(
-            name = "latitude",
-            precision = 10,
-            scale = 7
-    )
+    @Column(name = "latitude", precision = 10, scale = 7)
     private BigDecimal latitude;
 
-    @Column(
-            name = "longitude",
-            precision = 10,
-            scale = 7
-    )
+    @Column(name = "longitude", precision = 10, scale = 7)
     private BigDecimal longitude;
 
-    @Column(
-            name = "device_id",
-            nullable = false,
-            length = 255
-    )
+    @Column(name = "device_id", nullable = false, length = 255)
     private String deviceId;
+
+    @Column(name = "idempotency_key", length = 100, unique = true)
+    private String idempotencyKey;
+
+    @Column(name = "request_fingerprint", length = 64)
+    private String requestFingerprint;
 
     @Column(
             name = "created_at",
@@ -133,7 +92,9 @@ public class TransactionEntity {
             String city,
             BigDecimal latitude,
             BigDecimal longitude,
-            String deviceId
+            String deviceId,
+            String idempotencyKey,
+            String requestFingerprint
     ) {
         this.id = id;
         this.userId = userId;
@@ -148,27 +109,28 @@ public class TransactionEntity {
         this.latitude = latitude;
         this.longitude = longitude;
         this.deviceId = deviceId;
+        this.idempotencyKey = idempotencyKey;
+        this.requestFingerprint = requestFingerprint;
+    }
+
+    public static TransactionEntity fromDomain(Transaction transaction) {
+        return fromDomain(transaction, null, null);
     }
 
     public static TransactionEntity fromDomain(
-            Transaction transaction
+            Transaction transaction,
+            String idempotencyKey,
+            String requestFingerprint
     ) {
-        TransactionLocation location =
-                transaction.location();
+        TransactionLocation location = transaction.location();
 
-        BigDecimal latitude =
-                location.latitude() != null
-                        ? BigDecimal.valueOf(
-                        location.latitude()
-                )
-                        : null;
+        BigDecimal latitude = location.latitude() != null
+                ? BigDecimal.valueOf(location.latitude())
+                : null;
 
-        BigDecimal longitude =
-                location.longitude() != null
-                        ? BigDecimal.valueOf(
-                        location.longitude()
-                )
-                        : null;
+        BigDecimal longitude = location.longitude() != null
+                ? BigDecimal.valueOf(location.longitude())
+                : null;
 
         return new TransactionEntity(
                 transaction.id().value(),
@@ -183,29 +145,22 @@ public class TransactionEntity {
                 location.city(),
                 latitude,
                 longitude,
-                transaction.deviceId()
+                transaction.deviceId(),
+                idempotencyKey,
+                requestFingerprint
         );
     }
 
     public Transaction toDomain() {
-        TransactionLocation location =
-                new TransactionLocation(
-                        country,
-                        state,
-                        city,
-                        latitude != null
-                                ? latitude.doubleValue()
-                                : null,
-                        longitude != null
-                                ? longitude.doubleValue()
-                                : null
-                );
+        TransactionLocation location = new TransactionLocation(
+                country,
+                state,
+                city,
+                latitude != null ? latitude.doubleValue() : null,
+                longitude != null ? longitude.doubleValue() : null
+        );
 
-        Money money =
-                new Money(
-                        amount,
-                        currency
-                );
+        Money money = new Money(amount, currency);
 
         return new Transaction(
                 TransactionId.of(id),

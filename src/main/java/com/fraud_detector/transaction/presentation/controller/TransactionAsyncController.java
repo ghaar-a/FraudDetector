@@ -60,9 +60,18 @@ public class TransactionAsyncController {
             )
     })
     public ResponseEntity<TransactionAnalysisAcceptedResponse> analyzeAsync(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransactionAnalysisRequest request
     ) {
-        TransactionAnalysisRequestedEvent event = mapper.toRequestedEvent(request);
+        if (idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Idempotency-Key must contain between 1 and 100 characters."
+            );
+        }
+
+        TransactionAnalysisRequestedEvent event =
+                mapper.toRequestedEvent(request, idempotencyKey);
+
         asyncService.requestAnalysis(event);
 
         return ResponseEntity

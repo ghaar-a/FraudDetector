@@ -1,14 +1,18 @@
 package com.fraud_detector.shared.presentation.error;
 
+import com.fraud_detector.transaction.application.IdempotencyKeyConflictException;
 import com.fraud_detector.transaction.application.TransactionApplicationService;
 import com.fraud_detector.transaction.presentation.controller.TransactionController;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.Mockito.mock;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,17 +22,21 @@ class RestExceptionHandlerTest {
     private final TransactionApplicationService transactionApplicationService =
             mock(TransactionApplicationService.class);
 
+    private final RestExceptionHandler exceptionHandler =
+            new RestExceptionHandler();
+
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(
                     new TransactionController(
                             transactionApplicationService
                     )
             )
-            .setControllerAdvice(new RestExceptionHandler())
+            .setControllerAdvice(exceptionHandler)
             .build();
 
     @Test
-    void shouldReturnValidationErrorWhenRequestIsInvalid() throws Exception {
+    void shouldReturnValidationErrorWhenRequestIsInvalid()
+            throws Exception {
         String invalidJson = """
                 {
                   "transaction": {
@@ -70,30 +78,72 @@ class RestExceptionHandlerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze")
+                                .header(
+                                        "Idempotency-Key",
+                                        "rest-exception-test"
+                                )
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(invalidJson)
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(
+                        jsonPath("$.message").value("Validation failed")
+                )
                 .andExpect(
                         jsonPath("$.path")
                                 .value("/api/v1/transactions/analyze")
                 )
                 .andExpect(
-                        jsonPath("$.fieldErrors[*].field")
-                                .value(
-                                        hasItems(
-                                                "transaction.userId",
-                                                "transaction.amount.currency",
-                                                "transaction.merchant",
-                                                "transaction.location.country",
-                                                "transaction.location.city",
-                                                "transaction.deviceId",
-                                                "context.knownDeviceIds"
-                                        )
+                        jsonPath("$.fieldErrors[*].field").value(
+                                hasItems(
+                                        "transaction.userId",
+                                        "transaction.amount.currency",
+                                        "transaction.merchant",
+                                        "transaction.location.country",
+                                        "transaction.location.city",
+                                        "transaction.deviceId",
+                                        "context.knownDeviceIds"
                                 )
+                        )
                 );
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenIdempotencyKeyIsMissing()
+            throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/transactions/analyze")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(
+                        jsonPath("$.message").value(
+                                "Required request header is missing: Idempotency-Key"
+                        )
+                );
+    }
+
+    @Test
+    void shouldReturnConflictWhenIdempotencyKeyIsReusedWithDifferentRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "POST",
+                "/api/v1/transactions/analyze"
+        );
+
+        var response = exceptionHandler.handleIdempotencyKeyConflict(
+                new IdempotencyKeyConflictException(
+                        "The idempotency key has already been used with a different request."
+                ),
+                request
+        );
+
+        assertThat(response.getStatusCode().value())
+                .isEqualTo(CONFLICT.value());
+
+        assertThat(response.getBody()).isNotNull();
     }
 }

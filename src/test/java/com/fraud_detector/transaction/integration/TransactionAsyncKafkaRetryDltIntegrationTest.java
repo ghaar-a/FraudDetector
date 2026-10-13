@@ -32,6 +32,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -40,7 +41,6 @@ import static org.mockito.Mockito.verify;
 @Testcontainers
 @ActiveProfiles("test")
 class TransactionAsyncKafkaRetryDltIntegrationTest {
-
 
     @Container
     static final KafkaContainer kafka =
@@ -86,7 +86,6 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
 
     @Test
     void shouldPublishFailedMessageToDeadLetterTopic() {
-
         String deadLetterTopic =
                 KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS_DLT;
 
@@ -96,8 +95,9 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
                 )
         )
                 .when(kafkaListener)
-                .onMessage(
-                        any(TransactionAnalysisRequestedEvent.class)
+                .consume(
+                        any(TransactionAnalysisRequestedEvent.class),
+                        nullable(String.class)
                 );
 
         TransactionAnalysisRequestedEvent event =
@@ -113,11 +113,11 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
 
         verify(
                 kafkaListener,
-                timeout(20_000)
-                        .times(3)
+                timeout(20_000).times(3)
         )
-                .onMessage(
-                        any(TransactionAnalysisRequestedEvent.class)
+                .consume(
+                        any(TransactionAnalysisRequestedEvent.class),
+                        nullable(String.class)
                 );
 
         Map<String, Object> consumerProperties =
@@ -156,7 +156,6 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
                                 >(consumerProperties)
                                 .createConsumer()
         ) {
-
             consumer.subscribe(
                     Set.of(deadLetterTopic)
             );
@@ -195,7 +194,6 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
     }
 
     private TransactionAnalysisRequestedEvent createEvent() {
-
         return new TransactionAnalysisRequestedEvent(
                 new TransactionAnalysisRequestedEvent.TransactionRequest(
                         "user-dlt-test",
@@ -235,5 +233,4 @@ class TransactionAsyncKafkaRetryDltIntegrationTest {
                 )
         );
     }
-
 }

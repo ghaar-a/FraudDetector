@@ -13,8 +13,17 @@ import java.util.Set;
 
 public record TransactionAnalysisRequestedEvent(
         TransactionRequest transaction,
-        FraudRuleContextRequest context
+        FraudRuleContextRequest context,
+        String idempotencyKey,
+        String requestFingerprint
 ) {
+
+    public TransactionAnalysisRequestedEvent(
+            TransactionRequest transaction,
+            FraudRuleContextRequest context
+    ) {
+        this(transaction, context, null, null);
+    }
 
     public static TransactionAnalysisRequestedEvent from(
             Transaction transaction,
@@ -81,9 +90,7 @@ public record TransactionAnalysisRequestedEvent(
             String currency
     ) {
 
-        private static MoneyRequest from(
-                Money money
-        ) {
+        private static MoneyRequest from(Money money) {
             return new MoneyRequest(
                     money.amount(),
                     money.currency()

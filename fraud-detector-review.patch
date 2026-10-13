@@ -1,0 +1,1276 @@
+diff --git a/src/main/java/com/fraud_detector/shared/presentation/error/RestExceptionHandler.java b/src/main/java/com/fraud_detector/shared/presentation/error/RestExceptionHandler.java
+index 6f20e93..9cb93fa 100644
+--- a/src/main/java/com/fraud_detector/shared/presentation/error/RestExceptionHandler.java
++++ b/src/main/java/com/fraud_detector/shared/presentation/error/RestExceptionHandler.java
+@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
+ import org.springframework.web.HttpMediaTypeNotSupportedException;
+ import org.springframework.web.HttpRequestMethodNotSupportedException;
+ import org.springframework.web.bind.MethodArgumentNotValidException;
++import org.springframework.web.bind.MissingRequestHeaderException;
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+ import org.springframework.web.bind.annotation.RestControllerAdvice;
+ 
+@@ -30,11 +31,7 @@ public class RestExceptionHandler {
+                 .getBindingResult()
+                 .getFieldErrors()
+                 .stream()
+-                .sorted(
+-                        Comparator.comparing(
+-                                FieldError::getField
+-                        )
+-                )
++                .sorted(Comparator.comparing(FieldError::getField))
+                 .map(this::toFieldError)
+                 .toList();
+ 
+@@ -59,6 +56,33 @@ public class RestExceptionHandler {
+         );
+     }
+ 
++    @ExceptionHandler(MissingRequestHeaderException.class)
++    public ResponseEntity<ApiErrorResponse> handleMissingRequestHeader(
++            MissingRequestHeaderException exception,
++            HttpServletRequest request
++    ) {
++        return buildResponse(
++                HttpStatus.BAD_REQUEST,
++                "Required request header is missing: "
++                        + exception.getHeaderName(),
++                request,
++                List.of()
++        );
++    }
++
++    @ExceptionHandler(IllegalArgumentException.class)
++    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
++            IllegalArgumentException exception,
++            HttpServletRequest request
++    ) {
++        return buildResponse(
++                HttpStatus.BAD_REQUEST,
++                "Invalid request",
++                request,
++                List.of()
++        );
++    }
++
+     @ExceptionHandler(ConstraintViolationException.class)
+     public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+             ConstraintViolationException exception,
+@@ -69,10 +93,9 @@ public class RestExceptionHandler {
+                 .stream()
+                 .sorted(
+                         Comparator.comparing(
+-                                violation ->
+-                                        violation
+-                                                .getPropertyPath()
+-                                                .toString()
++                                violation -> violation
++                                        .getPropertyPath()
++                                        .toString()
+                         )
+                 )
+                 .map(this::toConstraintViolationError)
+@@ -146,9 +169,7 @@ public class RestExceptionHandler {
+                 .body(body);
+     }
+ 
+-    private FieldErrorResponse toFieldError(
+-            FieldError fieldError
+-    ) {
++    private FieldErrorResponse toFieldError(FieldError fieldError) {
+         return new FieldErrorResponse(
+                 fieldError.getField(),
+                 fieldError.getDefaultMessage(),
+@@ -165,4 +186,4 @@ public class RestExceptionHandler {
+                 violation.getInvalidValue()
+         );
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/com/fraud_detector/transaction/application/IdempotencyFingerprint.java b/src/main/java/com/fraud_detector/transaction/application/IdempotencyFingerprint.java
+new file mode 100644
+index 0000000..90bab0f
+--- /dev/null
++++ b/src/main/java/com/fraud_detector/transaction/application/IdempotencyFingerprint.java
+@@ -0,0 +1,113 @@
++package com.fraud_detector.transaction.application;
++
++import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisRequest;
++
++import java.nio.ByteBuffer;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
++import java.util.HexFormat;
++import java.util.List;
++import java.util.Objects;
++
++public final class IdempotencyFingerprint {
++
++    private IdempotencyFingerprint() {
++    }
++
++    public static String calculate(TransactionAnalysisRequest request) {
++        Objects.requireNonNull(request, "Request cannot be null");
++
++        try {
++            MessageDigest digest = MessageDigest.getInstance("SHA-256");
++
++            TransactionAnalysisRequest.TransactionRequest transaction =
++                    request.transaction();
++
++            TransactionAnalysisRequest.FraudRuleContextRequest context =
++                    request.context();
++
++            update(digest, transaction.userId());
++            update(digest, transaction.amount().amount().stripTrailingZeros().toPlainString());
++            update(digest, transaction.amount().currency());
++            update(digest, transaction.merchant());
++            update(digest, transaction.category().name());
++            update(digest, transaction.timestamp().toString());
++            update(digest, transaction.deviceId());
++
++            updateLocation(digest, transaction.location());
++
++            update(
++                    digest,
++                    context.averageTransactionAmount()
++                            .amount()
++                            .stripTrailingZeros()
++                            .toPlainString()
++            );
++            update(digest, context.averageTransactionAmount().currency());
++            update(digest, context.usualStartTime().toString());
++            update(digest, context.usualEndTime().toString());
++
++            List<String> sortedDeviceIds =
++                    context.knownDeviceIds()
++                            .stream()
++                            .sorted()
++                            .toList();
++
++            update(digest, Integer.toString(sortedDeviceIds.size()));
++
++            for (String deviceId : sortedDeviceIds) {
++                update(digest, deviceId);
++            }
++
++            updateLocation(digest, context.usualLocation());
++
++            return HexFormat.of().formatHex(digest.digest());
++        } catch (NoSuchAlgorithmException exception) {
++            throw new IllegalStateException(
++                    "SHA-256 algorithm is not available",
++                    exception
++            );
++        }
++    }
++
++    private static void updateLocation(
++            MessageDigest digest,
++            TransactionAnalysisRequest.LocationRequest location
++    ) {
++        update(digest, location.country());
++        update(digest, location.state());
++        update(digest, location.city());
++        update(
++                digest,
++                location.latitude() == null
++                        ? null
++                        : Double.toString(location.latitude())
++        );
++        update(
++                digest,
++                location.longitude() == null
++                        ? null
++                        : Double.toString(location.longitude())
++        );
++    }
++
++    private static void update(
++            MessageDigest digest,
++            String value
++    ) {
++        if (value == null) {
++            digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(-1).array());
++            return;
++        }
++
++        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
++
++        digest.update(
++                ByteBuffer.allocate(Integer.BYTES)
++                        .putInt(bytes.length)
++                        .array()
++        );
++        digest.update(bytes);
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/com/fraud_detector/transaction/application/IdempotencyKeyConflictException.java b/src/main/java/com/fraud_detector/transaction/application/IdempotencyKeyConflictException.java
+new file mode 100644
+index 0000000..3f89460
+--- /dev/null
++++ b/src/main/java/com/fraud_detector/transaction/application/IdempotencyKeyConflictException.java
+@@ -0,0 +1,8 @@
++package com.fraud_detector.transaction.application;
++
++public class IdempotencyKeyConflictException extends RuntimeException {
++
++    public IdempotencyKeyConflictException(String message) {
++        super(message);
++    }
++}
+diff --git a/src/main/java/com/fraud_detector/transaction/application/TransactionAnalysisProcessor.java b/src/main/java/com/fraud_detector/transaction/application/TransactionAnalysisProcessor.java
+new file mode 100644
+index 0000000..51d6876
+--- /dev/null
++++ b/src/main/java/com/fraud_detector/transaction/application/TransactionAnalysisProcessor.java
+@@ -0,0 +1,93 @@
++package com.fraud_detector.transaction.application;
++
++import com.fraud_detector.fraud.application.FraudDetectionService;
++import com.fraud_detector.fraud.domain.model.FraudAnalysis;
++import com.fraud_detector.fraud.domain.repository.FraudAnalysisRepository;
++import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
++import com.fraud_detector.transaction.domain.model.Transaction;
++import com.fraud_detector.transaction.domain.repository.TransactionRepository;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.util.Objects;
++
++@Service
++public class TransactionAnalysisProcessor {
++
++    private final TransactionRepository transactionRepository;
++    private final FraudAnalysisRepository fraudAnalysisRepository;
++    private final FraudDetectionService fraudDetectionService;
++
++    public TransactionAnalysisProcessor(
++            TransactionRepository transactionRepository,
++            FraudAnalysisRepository fraudAnalysisRepository,
++            FraudDetectionService fraudDetectionService
++    ) {
++        this.transactionRepository = Objects.requireNonNull(
++                transactionRepository,
++                "Transaction repository cannot be null"
++        );
++        this.fraudAnalysisRepository = Objects.requireNonNull(
++                fraudAnalysisRepository,
++                "Fraud analysis repository cannot be null"
++        );
++        this.fraudDetectionService = Objects.requireNonNull(
++                fraudDetectionService,
++                "Fraud detection service cannot be null"
++        );
++    }
++
++    @Transactional
++    public FraudAnalysis process(
++            Transaction transaction,
++            FraudRuleContext context
++    ) {
++        validate(transaction, context);
++
++        transactionRepository.save(transaction);
++
++        FraudAnalysis analysis = fraudDetectionService.analyze(
++                transaction,
++                context
++        );
++
++        return fraudAnalysisRepository.save(analysis);
++    }
++
++    @Transactional
++    public FraudAnalysis process(
++            Transaction transaction,
++            FraudRuleContext context,
++            String idempotencyKey,
++            String requestFingerprint
++    ) {
++        validate(transaction, context);
++
++        transactionRepository.save(
++                transaction,
++                idempotencyKey,
++                requestFingerprint
++        );
++
++        FraudAnalysis analysis = fraudDetectionService.analyze(
++                transaction,
++                context
++        );
++
++        return fraudAnalysisRepository.save(analysis);
++    }
++
++    private void validate(
++            Transaction transaction,
++            FraudRuleContext context
++    ) {
++        Objects.requireNonNull(
++                transaction,
++                "Transaction cannot be null"
++        );
++        Objects.requireNonNull(
++                context,
++                "Fraud rule context cannot be null"
++        );
++    }
++}
+diff --git a/src/main/java/com/fraud_detector/transaction/application/TransactionApplicationService.java b/src/main/java/com/fraud_detector/transaction/application/TransactionApplicationService.java
+index c7158db..f6012f1 100644
+--- a/src/main/java/com/fraud_detector/transaction/application/TransactionApplicationService.java
++++ b/src/main/java/com/fraud_detector/transaction/application/TransactionApplicationService.java
+@@ -1,27 +1,27 @@
+ package com.fraud_detector.transaction.application;
+ 
+-import com.fraud_detector.fraud.application.FraudDetectionService;
+ import com.fraud_detector.fraud.domain.model.FraudAnalysis;
+ import com.fraud_detector.fraud.domain.repository.FraudAnalysisRepository;
+ import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+ import com.fraud_detector.transaction.domain.model.Transaction;
+ import com.fraud_detector.transaction.domain.repository.TransactionRepository;
++import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.stereotype.Service;
+-import org.springframework.transaction.annotation.Transactional;
+ 
+ import java.util.Objects;
++import java.util.Optional;
+ 
+ @Service
+ public class TransactionApplicationService {
+ 
+     private final TransactionRepository transactionRepository;
+     private final FraudAnalysisRepository fraudAnalysisRepository;
+-    private final FraudDetectionService fraudDetectionService;
++    private final TransactionAnalysisProcessor processor;
+ 
+     public TransactionApplicationService(
+             TransactionRepository transactionRepository,
+             FraudAnalysisRepository fraudAnalysisRepository,
+-            FraudDetectionService fraudDetectionService
++            TransactionAnalysisProcessor processor
+     ) {
+         this.transactionRepository = Objects.requireNonNull(
+                 transactionRepository,
+@@ -31,16 +31,24 @@ public class TransactionApplicationService {
+                 fraudAnalysisRepository,
+                 "Fraud analysis repository cannot be null"
+         );
+-        this.fraudDetectionService = Objects.requireNonNull(
+-                fraudDetectionService,
+-                "Fraud detection service cannot be null"
++        this.processor = Objects.requireNonNull(
++                processor,
++                "Transaction analysis processor cannot be null"
+         );
+     }
+ 
+-    @Transactional
+     public FraudAnalysis process(
+             Transaction transaction,
+             FraudRuleContext context
++    ) {
++        return processor.process(transaction, context);
++    }
++
++    public FraudAnalysis process(
++            Transaction transaction,
++            FraudRuleContext context,
++            String idempotencyKey,
++            String requestFingerprint
+     ) {
+         Objects.requireNonNull(
+                 transaction,
+@@ -50,12 +58,88 @@ public class TransactionApplicationService {
+                 context,
+                 "Fraud rule context cannot be null"
+         );
++        validateIdempotencyKey(idempotencyKey);
++        validateFingerprint(requestFingerprint);
++
++        Optional<FraudAnalysis> existingAnalysis = findExistingAnalysis(
++                idempotencyKey,
++                requestFingerprint
++        );
++
++        if (existingAnalysis.isPresent()) {
++            return existingAnalysis.get();
++        }
++
++        try {
++            return processor.process(
++                    transaction,
++                    context,
++                    idempotencyKey,
++                    requestFingerprint
++            );
++        } catch (DataIntegrityViolationException exception) {
++            Optional<FraudAnalysis> concurrentAnalysis =
++                    findExistingAnalysis(
++                            idempotencyKey,
++                            requestFingerprint
++                    );
++
++            if (concurrentAnalysis.isPresent()) {
++                return concurrentAnalysis.get();
++            }
+ 
+-        transactionRepository.save(transaction);
++            throw exception;
++        }
++    }
++
++    private Optional<FraudAnalysis> findExistingAnalysis(
++            String idempotencyKey,
++            String requestFingerprint
++    ) {
++        Optional<Transaction> existingTransaction =
++                transactionRepository.findByIdempotencyKey(
++                        idempotencyKey
++                );
++
++        if (existingTransaction.isEmpty()) {
++            return Optional.empty();
++        }
++
++        String existingFingerprint =
++                transactionRepository
++                        .findFingerprintByIdempotencyKey(idempotencyKey)
++                        .orElse(null);
+ 
+-        FraudAnalysis analysis =
+-                fraudDetectionService.analyze(transaction, context);
++        if (!Objects.equals(
++                existingFingerprint,
++                requestFingerprint
++        )) {
++            throw new IdempotencyKeyConflictException(
++                    "The idempotency key has already been used with a different request."
++            );
++        }
++
++        return fraudAnalysisRepository.findByTransactionId(
++                existingTransaction.get().id().value()
++        );
++    }
++
++    private void validateIdempotencyKey(String idempotencyKey) {
++        if (idempotencyKey == null
++                || idempotencyKey.isBlank()
++                || idempotencyKey.length() > 100) {
++            throw new IllegalArgumentException(
++                    "Idempotency-Key must contain between 1 and 100 characters."
++            );
++        }
++    }
+ 
+-        return fraudAnalysisRepository.save(analysis);
++    private void validateFingerprint(String requestFingerprint) {
++        if (requestFingerprint == null
++                || !requestFingerprint.matches("^[a-f0-9]{64}$")) {
++            throw new IllegalArgumentException(
++                    "Request fingerprint must be a SHA-256 hexadecimal value."
++            );
++        }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/com/fraud_detector/transaction/application/mapper/TransactionAnalysisMapper.java b/src/main/java/com/fraud_detector/transaction/application/mapper/TransactionAnalysisMapper.java
+index 6164822..33276be 100644
+--- a/src/main/java/com/fraud_detector/transaction/application/mapper/TransactionAnalysisMapper.java
++++ b/src/main/java/com/fraud_detector/transaction/application/mapper/TransactionAnalysisMapper.java
+@@ -1,6 +1,7 @@
+ package com.fraud_detector.transaction.application.mapper;
+ 
+ import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
++import com.fraud_detector.transaction.application.IdempotencyFingerprint;
+ import com.fraud_detector.transaction.domain.model.Money;
+ import com.fraud_detector.transaction.domain.model.Transaction;
+ import com.fraud_detector.transaction.domain.model.TransactionLocation;
+@@ -9,6 +10,7 @@ import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisReques
+ import org.springframework.stereotype.Component;
+ 
+ import java.math.BigDecimal;
++import java.util.Objects;
+ 
+ @Component
+ public class TransactionAnalysisMapper {
+@@ -16,9 +18,27 @@ public class TransactionAnalysisMapper {
+     public TransactionAnalysisRequestedEvent toRequestedEvent(
+             TransactionAnalysisRequest request
+     ) {
++        return toRequestedEvent(request, null);
++    }
++
++    public TransactionAnalysisRequestedEvent toRequestedEvent(
++            TransactionAnalysisRequest request,
++            String idempotencyKey
++    ) {
++        Objects.requireNonNull(
++                request,
++                "Transaction analysis request cannot be null"
++        );
++
++        String fingerprint = idempotencyKey == null
++                ? null
++                : IdempotencyFingerprint.calculate(request);
++
+         return new TransactionAnalysisRequestedEvent(
+                 toRequestedTransaction(request.transaction()),
+-                toRequestedContext(request.context())
++                toRequestedContext(request.context()),
++                idempotencyKey,
++                fingerprint
+         );
+     }
+ 
+@@ -66,13 +86,7 @@ public class TransactionAnalysisMapper {
+                 request.merchant(),
+                 request.category(),
+                 request.timestamp(),
+-                new TransactionAnalysisRequestedEvent.LocationRequest(
+-                        request.location().country(),
+-                        request.location().state(),
+-                        request.location().city(),
+-                        request.location().latitude(),
+-                        request.location().longitude()
+-                ),
++                toRequestedLocation(request.location()),
+                 request.deviceId()
+         );
+     }
+@@ -88,13 +102,19 @@ public class TransactionAnalysisMapper {
+                 request.usualStartTime(),
+                 request.usualEndTime(),
+                 request.knownDeviceIds(),
+-                new TransactionAnalysisRequestedEvent.LocationRequest(
+-                        request.usualLocation().country(),
+-                        request.usualLocation().state(),
+-                        request.usualLocation().city(),
+-                        request.usualLocation().latitude(),
+-                        request.usualLocation().longitude()
+-                )
++                toRequestedLocation(request.usualLocation())
++        );
++    }
++
++    private TransactionAnalysisRequestedEvent.LocationRequest toRequestedLocation(
++            TransactionAnalysisRequest.LocationRequest location
++    ) {
++        return new TransactionAnalysisRequestedEvent.LocationRequest(
++                location.country(),
++                location.state(),
++                location.city(),
++                location.latitude(),
++                location.longitude()
+         );
+     }
+ 
+@@ -116,4 +136,4 @@ public class TransactionAnalysisMapper {
+                 location.longitude()
+         );
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/com/fraud_detector/transaction/domain/repository/TransactionRepository.java b/src/main/java/com/fraud_detector/transaction/domain/repository/TransactionRepository.java
+index fad0095..64f2b17 100644
+--- a/src/main/java/com/fraud_detector/transaction/domain/repository/TransactionRepository.java
++++ b/src/main/java/com/fraud_detector/transaction/domain/repository/TransactionRepository.java
+@@ -7,11 +7,18 @@ import java.util.UUID;
+ 
+ public interface TransactionRepository {
+ 
++    Transaction save(Transaction transaction);
++
+     Transaction save(
+-            Transaction transaction
++            Transaction transaction,
++            String idempotencyKey,
++            String requestFingerprint
+     );
+ 
+-    Optional<Transaction> findById(
+-            UUID transactionId
+-    );
+-}
+\ No newline at end of file
++    Optional<Transaction> findById(UUID transactionId);
++
++    Optional<Transaction> findByIdempotencyKey(String idempotencyKey);
++
++    Optional<String> findFingerprintByIdempotencyKey(String idempotencyKey);
++}
++
+diff --git a/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/event/TransactionAnalysisRequestedEvent.java b/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/event/TransactionAnalysisRequestedEvent.java
+index 5df5240..f621633 100644
+--- a/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/event/TransactionAnalysisRequestedEvent.java
++++ b/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/event/TransactionAnalysisRequestedEvent.java
+@@ -13,9 +13,18 @@ import java.util.Set;
+ 
+ public record TransactionAnalysisRequestedEvent(
+         TransactionRequest transaction,
+-        FraudRuleContextRequest context
++        FraudRuleContextRequest context,
++        String idempotencyKey,
++        String requestFingerprint
+ ) {
+ 
++    public TransactionAnalysisRequestedEvent(
++            TransactionRequest transaction,
++            FraudRuleContextRequest context
++    ) {
++        this(transaction, context, null, null);
++    }
++
+     public static TransactionAnalysisRequestedEvent from(
+             Transaction transaction,
+             FraudRuleContext context
+@@ -81,9 +90,7 @@ public record TransactionAnalysisRequestedEvent(
+             String currency
+     ) {
+ 
+-        private static MoneyRequest from(
+-                Money money
+-        ) {
++        private static MoneyRequest from(Money money) {
+             return new MoneyRequest(
+                     money.amount(),
+                     money.currency()
+diff --git a/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/listener/TransactionAnalysisKafkaListener.java b/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/listener/TransactionAnalysisKafkaListener.java
+index eaa93aa..46e296c 100644
+--- a/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/listener/TransactionAnalysisKafkaListener.java
++++ b/src/main/java/com/fraud_detector/transaction/infrastructure/messaging/listener/TransactionAnalysisKafkaListener.java
+@@ -25,7 +25,6 @@ public class TransactionAnalysisKafkaListener {
+                 transactionApplicationService,
+                 "Transaction application service cannot be null"
+         );
+-
+         this.mapper = Objects.requireNonNull(
+                 mapper,
+                 "Transaction analysis mapper cannot be null"
+@@ -40,20 +39,26 @@ public class TransactionAnalysisKafkaListener {
+     public void onMessage(
+             TransactionAnalysisRequestedEvent event
+     ) {
+-        Objects.requireNonNull(
+-                event,
+-                "Event cannot be null"
++        Objects.requireNonNull(event, "Event cannot be null");
++
++        Transaction transaction = mapper.toTransaction(
++                event.transaction()
+         );
+ 
+-        Transaction transaction =
+-                mapper.toTransaction(
+-                        event.transaction()
+-                );
++        FraudRuleContext context = mapper.toFraudRuleContext(
++                event.context()
++        );
+ 
+-        FraudRuleContext context =
+-                mapper.toFraudRuleContext(
+-                        event.context()
+-                );
++        if (event.idempotencyKey() != null
++                && event.requestFingerprint() != null) {
++            transactionApplicationService.process(
++                    transaction,
++                    context,
++                    event.idempotencyKey(),
++                    event.requestFingerprint()
++            );
++            return;
++        }
+ 
+         transactionApplicationService.process(
+                 transaction,
+diff --git a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/entity/TransactionEntity.java b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/entity/TransactionEntity.java
+index 6a6b423..c6d6529 100644
+--- a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/entity/TransactionEntity.java
++++ b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/entity/TransactionEntity.java
+@@ -28,90 +28,49 @@ public class TransactionEntity {
+     @Id
+     private UUID id;
+ 
+-    @Column(
+-            name = "user_id",
+-            nullable = false,
+-            length = 100
+-    )
++    @Column(name = "user_id", nullable = false, length = 100)
+     private String userId;
+ 
+-    @Column(
+-            name = "amount",
+-            nullable = false,
+-            precision = 19,
+-            scale = 4
+-    )
++    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
+     private BigDecimal amount;
+ 
+-    @Column(
+-            name = "currency",
+-            nullable = false,
+-            length = 3
+-    )
++    @Column(name = "currency", nullable = false, length = 3)
+     private String currency;
+ 
+-    @Column(
+-            name = "merchant_name",
+-            nullable = false,
+-            length = 255
+-    )
++    @Column(name = "merchant_name", nullable = false, length = 255)
+     private String merchant;
+ 
+     @Enumerated(EnumType.STRING)
+-    @Column(
+-            name = "category",
+-            nullable = false,
+-            length = 50
+-    )
++    @Column(name = "category", nullable = false, length = 50)
+     private TransactionCategory category;
+ 
+-    @Column(
+-            name = "transaction_timestamp",
+-            nullable = false
+-    )
++    @Column(name = "transaction_timestamp", nullable = false)
+     private Instant transactionTimestamp;
+ 
+-    @Column(
+-            name = "country",
+-            nullable = false,
+-            length = 2
+-    )
++    @Column(name = "country", nullable = false, length = 2)
+     private String country;
+ 
+-    @Column(
+-            name = "state",
+-            length = 100
+-    )
++    @Column(name = "state", length = 100)
+     private String state;
+ 
+-    @Column(
+-            name = "city",
+-            nullable = false,
+-            length = 150
+-    )
++    @Column(name = "city", nullable = false, length = 150)
+     private String city;
+ 
+-    @Column(
+-            name = "latitude",
+-            precision = 10,
+-            scale = 7
+-    )
++    @Column(name = "latitude", precision = 10, scale = 7)
+     private BigDecimal latitude;
+ 
+-    @Column(
+-            name = "longitude",
+-            precision = 10,
+-            scale = 7
+-    )
++    @Column(name = "longitude", precision = 10, scale = 7)
+     private BigDecimal longitude;
+ 
+-    @Column(
+-            name = "device_id",
+-            nullable = false,
+-            length = 255
+-    )
++    @Column(name = "device_id", nullable = false, length = 255)
+     private String deviceId;
+ 
++    @Column(name = "idempotency_key", length = 100, unique = true)
++    private String idempotencyKey;
++
++    @Column(name = "request_fingerprint", length = 64)
++    private String requestFingerprint;
++
+     @Column(
+             name = "created_at",
+             nullable = false,
+@@ -133,7 +92,9 @@ public class TransactionEntity {
+             String city,
+             BigDecimal latitude,
+             BigDecimal longitude,
+-            String deviceId
++            String deviceId,
++            String idempotencyKey,
++            String requestFingerprint
+     ) {
+         this.id = id;
+         this.userId = userId;
+@@ -148,27 +109,28 @@ public class TransactionEntity {
+         this.latitude = latitude;
+         this.longitude = longitude;
+         this.deviceId = deviceId;
++        this.idempotencyKey = idempotencyKey;
++        this.requestFingerprint = requestFingerprint;
++    }
++
++    public static TransactionEntity fromDomain(Transaction transaction) {
++        return fromDomain(transaction, null, null);
+     }
+ 
+     public static TransactionEntity fromDomain(
+-            Transaction transaction
++            Transaction transaction,
++            String idempotencyKey,
++            String requestFingerprint
+     ) {
+-        TransactionLocation location =
+-                transaction.location();
+-
+-        BigDecimal latitude =
+-                location.latitude() != null
+-                        ? BigDecimal.valueOf(
+-                        location.latitude()
+-                )
+-                        : null;
+-
+-        BigDecimal longitude =
+-                location.longitude() != null
+-                        ? BigDecimal.valueOf(
+-                        location.longitude()
+-                )
+-                        : null;
++        TransactionLocation location = transaction.location();
++
++        BigDecimal latitude = location.latitude() != null
++                ? BigDecimal.valueOf(location.latitude())
++                : null;
++
++        BigDecimal longitude = location.longitude() != null
++                ? BigDecimal.valueOf(location.longitude())
++                : null;
+ 
+         return new TransactionEntity(
+                 transaction.id().value(),
+@@ -183,29 +145,22 @@ public class TransactionEntity {
+                 location.city(),
+                 latitude,
+                 longitude,
+-                transaction.deviceId()
++                transaction.deviceId(),
++                idempotencyKey,
++                requestFingerprint
+         );
+     }
+ 
+     public Transaction toDomain() {
+-        TransactionLocation location =
+-                new TransactionLocation(
+-                        country,
+-                        state,
+-                        city,
+-                        latitude != null
+-                                ? latitude.doubleValue()
+-                                : null,
+-                        longitude != null
+-                                ? longitude.doubleValue()
+-                                : null
+-                );
+-
+-        Money money =
+-                new Money(
+-                        amount,
+-                        currency
+-                );
++        TransactionLocation location = new TransactionLocation(
++                country,
++                state,
++                city,
++                latitude != null ? latitude.doubleValue() : null,
++                longitude != null ? longitude.doubleValue() : null
++        );
++
++        Money money = new Money(amount, currency);
+ 
+         return new Transaction(
+                 TransactionId.of(id),
+@@ -218,4 +173,5 @@ public class TransactionEntity {
+                 deviceId
+         );
+     }
+-}
+\ No newline at end of file
++}
++
+diff --git a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/JpaTransactionRepository.java b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/JpaTransactionRepository.java
+index b526f0d..75906e4 100644
+--- a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/JpaTransactionRepository.java
++++ b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/JpaTransactionRepository.java
+@@ -3,8 +3,12 @@ package com.fraud_detector.transaction.infrastructure.persistence.repository;
+ import com.fraud_detector.transaction.infrastructure.persistence.entity.TransactionEntity;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ 
++import java.util.Optional;
+ import java.util.UUID;
+ 
+ public interface JpaTransactionRepository
+         extends JpaRepository<TransactionEntity, UUID> {
+-}
+\ No newline at end of file
++
++    Optional<TransactionEntity> findByIdempotencyKey(String idempotencyKey);
++}
++
+diff --git a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/TransactionRepositoryAdapter.java b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/TransactionRepositoryAdapter.java
+index 26c9978..44d21ea 100644
+--- a/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/TransactionRepositoryAdapter.java
++++ b/src/main/java/com/fraud_detector/transaction/infrastructure/persistence/repository/TransactionRepositoryAdapter.java
+@@ -20,29 +20,64 @@ public class TransactionRepositoryAdapter
+         this.repository = repository;
+     }
+ 
++    @Override
++    public Transaction save(Transaction transaction) {
++        return saveEntity(TransactionEntity.fromDomain(transaction));
++    }
++
+     @Override
+     public Transaction save(
+-            Transaction transaction
++            Transaction transaction,
++            String idempotencyKey,
++            String requestFingerprint
+     ) {
+-        TransactionEntity entity =
+-                TransactionEntity.fromDomain(
+-                        transaction
+-                );
++        if (idempotencyKey == null || idempotencyKey.isBlank()) {
++            throw new IllegalArgumentException(
++                    "Idempotency key cannot be blank"
++            );
++        }
+ 
+-        TransactionEntity saved =
+-                repository.save(
+-                        entity
+-                );
++        if (requestFingerprint == null
++                || !requestFingerprint.matches("^[a-fA-F0-9]{64}$")) {
++            throw new IllegalArgumentException(
++                    "Request fingerprint must be a SHA-256 hexadecimal value"
++            );
++        }
+ 
+-        return saved.toDomain();
++        TransactionEntity entity = TransactionEntity.fromDomain(
++                transaction,
++                idempotencyKey,
++                requestFingerprint
++        );
++
++        return saveEntity(entity);
++    }
++
++    @Override
++    public Optional<Transaction> findById(UUID transactionId) {
++        return repository.findById(transactionId)
++                .map(TransactionEntity::toDomain);
+     }
+ 
+     @Override
+-    public Optional<Transaction> findById(
+-            UUID transactionId
++    public Optional<Transaction> findByIdempotencyKey(
++            String idempotencyKey
+     ) {
+-        return repository
+-                .findById(transactionId)
++        return repository.findByIdempotencyKey(idempotencyKey)
+                 .map(TransactionEntity::toDomain);
+     }
+-}
+\ No newline at end of file
++
++    @Override
++    public Optional<String> findFingerprintByIdempotencyKey(
++            String idempotencyKey
++    ) {
++        return repository.findByIdempotencyKey(idempotencyKey)
++                .map(TransactionEntity::getRequestFingerprint);
++    }
++
++    private Transaction saveEntity(TransactionEntity entity) {
++        TransactionEntity saved = repository.save(entity);
++        return saved.toDomain();
++    }
++}
++
+diff --git a/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncController.java b/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncController.java
+index 3834bee..9b3a6d6 100644
+--- a/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncController.java
++++ b/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncController.java
+@@ -60,9 +60,18 @@ public class TransactionAsyncController {
+             )
+     })
+     public ResponseEntity<TransactionAnalysisAcceptedResponse> analyzeAsync(
++            @RequestHeader("Idempotency-Key") String idempotencyKey,
+             @Valid @RequestBody TransactionAnalysisRequest request
+     ) {
+-        TransactionAnalysisRequestedEvent event = mapper.toRequestedEvent(request);
++        if (idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
++            throw new IllegalArgumentException(
++                    "Idempotency-Key must contain between 1 and 100 characters."
++            );
++        }
++
++        TransactionAnalysisRequestedEvent event =
++                mapper.toRequestedEvent(request, idempotencyKey);
++
+         asyncService.requestAnalysis(event);
+ 
+         return ResponseEntity
+diff --git a/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionController.java b/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionController.java
+index 1cea400..b6ef36b 100644
+--- a/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionController.java
++++ b/src/main/java/com/fraud_detector/transaction/presentation/controller/TransactionController.java
+@@ -3,6 +3,7 @@ package com.fraud_detector.transaction.presentation.controller;
+ import com.fraud_detector.fraud.domain.model.FraudAnalysis;
+ import com.fraud_detector.fraud.domain.rule.FraudRuleContext;
+ import com.fraud_detector.shared.presentation.error.ApiErrorResponse;
++import com.fraud_detector.transaction.application.IdempotencyFingerprint;
+ import com.fraud_detector.transaction.application.TransactionApplicationService;
+ import com.fraud_detector.transaction.domain.model.Money;
+ import com.fraud_detector.transaction.domain.model.Transaction;
+@@ -67,14 +68,23 @@ public class TransactionController {
+             )
+     })
+     public ResponseEntity<FraudAnalysisResponse> analyze(
++            @RequestHeader("Idempotency-Key") String idempotencyKey,
+             @Valid @RequestBody TransactionAnalysisRequest request
+     ) {
++        if (idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
++            throw new IllegalArgumentException(
++                    "Idempotency-Key must contain between 1 and 100 characters."
++            );
++        }
++
+         Transaction transaction = toTransaction(request.transaction());
+         FraudRuleContext context = toFraudRuleContext(request.context());
+ 
+         FraudAnalysis analysis = transactionApplicationService.process(
+                 transaction,
+-                context
++                context,
++                idempotencyKey,
++                IdempotencyFingerprint.calculate(request)
+         );
+ 
+         return ResponseEntity.ok(toResponse(analysis));
+@@ -143,4 +153,4 @@ public class TransactionController {
+                 analysis.analyzedAt()
+         );
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/src/main/resources/db/migration/V4__add_transaction_idempotency.sql b/src/main/resources/db/migration/V4__add_transaction_idempotency.sql
+new file mode 100644
+index 0000000..55986fa
+--- /dev/null
++++ b/src/main/resources/db/migration/V4__add_transaction_idempotency.sql
+@@ -0,0 +1,9 @@
++ALTER TABLE transactions
++    ADD COLUMN idempotency_key VARCHAR(100),
++    ADD COLUMN request_fingerprint CHAR(64);
++
++CREATE UNIQUE INDEX uq_transactions_idempotency_key
++    ON transactions (idempotency_key);
++
++CREATE UNIQUE INDEX uq_fraud_analyses_transaction_id
++    ON fraud_analyses (transaction_id);
+\ No newline at end of file
+diff --git a/src/main/resources/db/migration/V5__fix_request_fingerprint_type.sql b/src/main/resources/db/migration/V5__fix_request_fingerprint_type.sql
+new file mode 100644
+index 0000000..9a4e84d
+--- /dev/null
++++ b/src/main/resources/db/migration/V5__fix_request_fingerprint_type.sql
+@@ -0,0 +1,4 @@
++ALTER TABLE transactions
++ALTER COLUMN request_fingerprint
++    TYPE VARCHAR(64)
++    USING rtrim(request_fingerprint)::VARCHAR(64);
+\ No newline at end of file
+diff --git a/src/test/java/com/fraud_detector/FraudDetectorApplicationTests.java b/src/test/java/com/fraud_detector/FraudDetectorApplicationTests.java
+index 8bd021c..0fc03f9 100644
+--- a/src/test/java/com/fraud_detector/FraudDetectorApplicationTests.java
++++ b/src/test/java/com/fraud_detector/FraudDetectorApplicationTests.java
+@@ -3,17 +3,10 @@ package com.fraud_detector;
+ import org.junit.jupiter.api.Test;
+ import org.springframework.boot.test.context.SpringBootTest;
+ 
+-@SpringBootTest(properties = {
+-		"spring.autoconfigure.exclude=" +
+-				"org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration," +
+-				"org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration," +
+-				"org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration," +
+-				"org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
+-		"spring.flyway.enabled=false"
+-})
++@SpringBootTest
+ class FraudDetectorApplicationTests {
+ 
+ 	@Test
+ 	void contextLoads() {
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/test/java/com/fraud_detector/shared/presentation/error/RestExceptionHandlerTest.java b/src/test/java/com/fraud_detector/shared/presentation/error/RestExceptionHandlerTest.java
+index 7a47964..f07b4ec 100644
+--- a/src/test/java/com/fraud_detector/shared/presentation/error/RestExceptionHandlerTest.java
++++ b/src/test/java/com/fraud_detector/shared/presentation/error/RestExceptionHandlerTest.java
+@@ -70,6 +70,10 @@ class RestExceptionHandlerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze")
++                                .header(
++                                        "Idempotency-Key",
++                                        "rest-exception-test"
++                                )
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(invalidJson)
+                 )
+@@ -96,4 +100,22 @@ class RestExceptionHandlerTest {
+                                 )
+                 );
+     }
++
++    @Test
++    void shouldReturnBadRequestWhenIdempotencyKeyIsMissing()
++            throws Exception {
++        mockMvc.perform(
++                        post("/api/v1/transactions/analyze")
++                                .contentType(MediaType.APPLICATION_JSON)
++                                .content("{}")
++                )
++                .andExpect(status().isBadRequest())
++                .andExpect(jsonPath("$.status").value(400))
++                .andExpect(
++                        jsonPath("$.message")
++                                .value(
++                                        "Required request header is missing: Idempotency-Key"
++                                )
++                );
++    }
+ }
+\ No newline at end of file
+diff --git a/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncControllerTest.java b/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncControllerTest.java
+index fe00832..6086e39 100644
+--- a/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncControllerTest.java
++++ b/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionAsyncControllerTest.java
+@@ -69,6 +69,7 @@ class TransactionAsyncControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze/async")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(
+                                         objectMapper.writeValueAsString(
+@@ -140,6 +141,7 @@ class TransactionAsyncControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze/async")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(requestBody)
+                 )
+@@ -166,6 +168,7 @@ class TransactionAsyncControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze/async")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content("{ invalid-json")
+                 )
+diff --git a/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionControllerTest.java b/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionControllerTest.java
+index 692b3e2..c359e64 100644
+--- a/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionControllerTest.java
++++ b/src/test/java/com/fraud_detector/transaction/presentation/controller/TransactionControllerTest.java
+@@ -81,7 +81,9 @@ class TransactionControllerTest {
+         when(
+                 transactionApplicationService.process(
+                         any(Transaction.class),
+-                        any(FraudRuleContext.class)
++                        any(FraudRuleContext.class),
++                        any(String.class),
++                        any(String.class)
+                 )
+         ).thenReturn(analysis);
+ 
+@@ -89,6 +91,7 @@ class TransactionControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(
+                                         objectMapper.writeValueAsString(request)
+@@ -127,7 +130,9 @@ class TransactionControllerTest {
+ 
+         verify(transactionApplicationService).process(
+                 transactionCaptor.capture(),
+-                contextCaptor.capture()
++                contextCaptor.capture(),
++                any(String.class),
++                any(String.class)
+         );
+ 
+         Transaction capturedTransaction =
+@@ -243,6 +248,7 @@ class TransactionControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(requestBody)
+                 )
+@@ -269,6 +275,7 @@ class TransactionControllerTest {
+     void shouldRejectMalformedJson() throws Exception {
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content("{ invalid-json")
+                 )
+@@ -295,7 +302,9 @@ class TransactionControllerTest {
+         when(
+                 transactionApplicationService.process(
+                         any(Transaction.class),
+-                        any(FraudRuleContext.class)
++                        any(FraudRuleContext.class),
++                        any(String.class),
++                        any(String.class)
+                 )
+         ).thenThrow(
+                 new IllegalStateException(
+@@ -305,6 +314,7 @@ class TransactionControllerTest {
+ 
+         mockMvc.perform(
+                         post("/api/v1/transactions/analyze")
++                                .header("Idempotency-Key", "controller-test-key")
+                                 .contentType(MediaType.APPLICATION_JSON)
+                                 .content(
+                                         objectMapper.writeValueAsString(

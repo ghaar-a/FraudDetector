@@ -1,39 +1,157 @@
 package com.fraud_detector.transaction.infrastructure.messaging.producer;
 
+import com.fraud_detector.shared.observability.CorrelationIdContext;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
+import com.fraud_detector.transaction.infrastructure.messaging.TransactionAnalysisMetrics;
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class TransactionAnalysisKafkaProducerTest {
 
-    @SuppressWarnings("unchecked")
-    private final KafkaTemplate<String, TransactionAnalysisRequestedEvent> kafkaTemplate =
-            mock(KafkaTemplate.class);
+    private final KafkaTemplate<String, TransactionAnalysisRequestedEvent>
+            kafkaTemplate = mock(KafkaTemplate.class);
+
+    private final SimpleMeterRegistry meterRegistry =
+            new SimpleMeterRegistry();
+
+    private final TransactionAnalysisMetrics metrics =
+            new TransactionAnalysisMetrics(meterRegistry);
 
     private final TransactionAnalysisKafkaProducer producer =
-            new TransactionAnalysisKafkaProducer(kafkaTemplate);
+            new TransactionAnalysisKafkaProducer(
+                    kafkaTemplate,
+                    metrics
+            );
+
+    @AfterEach
+    void tearDown() {
+        org.slf4j.MDC.clear();
+        meterRegistry.close();
+    }
 
     @Test
-    void shouldPublishEventToKafka() {
+    void shouldPublishEventWithExpectedTopicKeyAndValue() {
         TransactionAnalysisRequestedEvent event = sampleEvent();
+
+        when(kafkaTemplate.send(
+                any(ProducerRecord.class)
+        )).thenReturn(CompletableFuture.completedFuture(
+                mock(SendResult.class)
+        ));
 
         producer.publish(event);
 
-        verify(kafkaTemplate).send(
-                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
-                "user-123",
-                event
+        ArgumentCaptor<ProducerRecord<String, TransactionAnalysisRequestedEvent>>
+                recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
+
+        verify(kafkaTemplate).send(recordCaptor.capture());
+
+        ProducerRecord<String, TransactionAnalysisRequestedEvent> record =
+                recordCaptor.getValue();
+
+        assertThat(record.topic())
+                .isEqualTo(KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS);
+
+        assertThat(record.key())
+                .isEqualTo("user-123");
+
+        assertThat(record.value())
+                .isSameAs(event);
+
+        assertThat(record.headers().lastHeader(
+                CorrelationIdContext.HEADER_NAME
+        )).isNull();
+
+        assertThat(meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.publish"
+        ).tag("result", "success").counter().count())
+                .isEqualTo(1.0);
+
+        assertThat(meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.publish"
+        ).tag("result", "failure").counter().count())
+                .isZero();
+    }
+
+    @Test
+    void shouldIncludeCorrelationIdInKafkaHeader() {
+        TransactionAnalysisRequestedEvent event = sampleEvent();
+        String correlationId = "test-correlation-123";
+
+        org.slf4j.MDC.put(
+                CorrelationIdContext.MDC_KEY,
+                correlationId
         );
+
+        when(kafkaTemplate.send(
+                any(ProducerRecord.class)
+        )).thenReturn(CompletableFuture.completedFuture(
+                mock(SendResult.class)
+        ));
+
+        producer.publish(event);
+
+        ArgumentCaptor<ProducerRecord<String, TransactionAnalysisRequestedEvent>>
+                recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
+
+        verify(kafkaTemplate).send(recordCaptor.capture());
+
+        ProducerRecord<String, TransactionAnalysisRequestedEvent> record =
+                recordCaptor.getValue();
+
+        assertThat(record.headers().lastHeader(
+                CorrelationIdContext.HEADER_NAME
+        )).isNotNull();
+
+        assertThat(new String(
+                record.headers()
+                        .lastHeader(CorrelationIdContext.HEADER_NAME)
+                        .value(),
+                StandardCharsets.UTF_8
+        )).isEqualTo(correlationId);
+    }
+
+    @Test
+    void shouldRecordPublishFailureWhenKafkaSendFails() {
+        TransactionAnalysisRequestedEvent event = sampleEvent();
+
+        when(kafkaTemplate.send(
+                any(ProducerRecord.class)
+        )).thenReturn(CompletableFuture.failedFuture(
+                new IllegalStateException("Kafka unavailable")
+        ));
+
+        producer.publish(event);
+
+        assertThat(meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.publish"
+        ).tag("result", "failure").counter().count())
+                .isEqualTo(1.0);
+
+        assertThat(meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.publish"
+        ).tag("result", "success").counter().count())
+                .isZero();
     }
 
     @Test

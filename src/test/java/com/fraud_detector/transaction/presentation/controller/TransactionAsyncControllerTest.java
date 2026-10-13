@@ -69,6 +69,7 @@ class TransactionAsyncControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -140,6 +141,7 @@ class TransactionAsyncControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -166,6 +168,7 @@ class TransactionAsyncControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{ invalid-json")
                 )

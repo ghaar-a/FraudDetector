@@ -7,11 +7,17 @@ import java.util.UUID;
 
 public interface TransactionRepository {
 
+    Transaction save(Transaction transaction);
+
     Transaction save(
-            Transaction transaction
+            Transaction transaction,
+            String idempotencyKey,
+            String requestFingerprint
     );
 
-    Optional<Transaction> findById(
-            UUID transactionId
-    );
+    Optional<Transaction> findById(UUID transactionId);
+
+    Optional<Transaction> findByIdempotencyKey(String idempotencyKey);
+
+    Optional<String> findFingerprintByIdempotencyKey(String idempotencyKey);
 }

@@ -81,7 +81,9 @@ class TransactionControllerTest {
         when(
                 transactionApplicationService.process(
                         any(Transaction.class),
-                        any(FraudRuleContext.class)
+                        any(FraudRuleContext.class),
+                        any(String.class),
+                        any(String.class)
                 )
         ).thenReturn(analysis);
 
@@ -89,6 +91,7 @@ class TransactionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(request)
@@ -127,7 +130,9 @@ class TransactionControllerTest {
 
         verify(transactionApplicationService).process(
                 transactionCaptor.capture(),
-                contextCaptor.capture()
+                contextCaptor.capture(),
+                any(String.class),
+                any(String.class)
         );
 
         Transaction capturedTransaction =
@@ -243,6 +248,7 @@ class TransactionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -269,6 +275,7 @@ class TransactionControllerTest {
     void shouldRejectMalformedJson() throws Exception {
         mockMvc.perform(
                         post("/api/v1/transactions/analyze")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{ invalid-json")
                 )
@@ -295,7 +302,9 @@ class TransactionControllerTest {
         when(
                 transactionApplicationService.process(
                         any(Transaction.class),
-                        any(FraudRuleContext.class)
+                        any(FraudRuleContext.class),
+                        any(String.class),
+                        any(String.class)
                 )
         ).thenThrow(
                 new IllegalStateException(
@@ -305,6 +314,7 @@ class TransactionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze")
+                                .header("Idempotency-Key", "controller-test-key")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
