@@ -86,6 +86,8 @@ public class TransactionAnalysisKafkaListener {
         try {
             LOGGER.info("Starting transaction analysis event processing");
 
+            validateIdempotencyMetadata(event);
+
             Transaction transaction = mapper.toTransaction(
                     event.transaction()
             );
@@ -94,8 +96,7 @@ public class TransactionAnalysisKafkaListener {
                     event.context()
             );
 
-            if (event.idempotencyKey() != null
-                    && event.requestFingerprint() != null) {
+            if (event.idempotencyKey() != null) {
                 transactionApplicationService.process(
                         transaction,
                         context,
@@ -131,6 +132,20 @@ public class TransactionAnalysisKafkaListener {
                         previousCorrelationId
                 );
             }
+        }
+    }
+
+    private void validateIdempotencyMetadata(
+            TransactionAnalysisRequestedEvent event
+    ) {
+        boolean hasIdempotencyKey = event.idempotencyKey() != null;
+        boolean hasRequestFingerprint = event.requestFingerprint() != null;
+
+        if (hasIdempotencyKey != hasRequestFingerprint) {
+            throw new IllegalArgumentException(
+                    "Idempotency key and request fingerprint must either "
+                            + "both be present or both be absent."
+            );
         }
     }
 }

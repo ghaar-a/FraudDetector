@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class TransactionAnalysisKafkaListenerTest {
 
@@ -54,7 +55,8 @@ class TransactionAnalysisKafkaListenerTest {
     }
 
     @Test
-    void shouldConsumeEventAndTriggerTransactionProcessing() {
+    void shouldConsumeLegacyEventWithoutIdempotencyMetadata()
+            throws Exception {
         TransactionAnalysisRequestedEvent event = sampleEvent();
 
         listener.onMessage(event);
@@ -112,25 +114,73 @@ class TransactionAnalysisKafkaListenerTest {
                 )
         );
 
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "started").counter().count())
-                .isEqualTo(1.0);
-
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "success").counter().count())
-                .isEqualTo(1.0);
-
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "failure").counter().count())
-                .isZero();
+        assertThat(counter("started")).isEqualTo(1.0);
+        assertThat(counter("success")).isEqualTo(1.0);
+        assertThat(counter("failure")).isZero();
 
         assertThat(meterRegistry.get(
                 "fraud_detector.kafka.transaction_analysis.processing.duration"
-        ).timer().count())
-                .isEqualTo(1);
+        ).timer().count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldProcessEventWithCompleteIdempotencyMetadata() {
+        TransactionAnalysisRequestedEvent event =
+                sampleEventWithMetadata("key-123", "a".repeat(64));
+
+        listener.onMessage(event);
+
+        ArgumentCaptor<Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(Transaction.class);
+
+        ArgumentCaptor<FraudRuleContext> contextCaptor =
+                ArgumentCaptor.forClass(FraudRuleContext.class);
+
+        verify(transactionApplicationService).process(
+                transactionCaptor.capture(),
+                contextCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq("key-123"),
+                org.mockito.ArgumentMatchers.eq("a".repeat(64))
+        );
+
+        assertThat(counter("success")).isEqualTo(1.0);
+        assertThat(counter("failure")).isZero();
+    }
+
+    @Test
+    void shouldRejectEventWithIdempotencyKeyButMissingFingerprint() {
+        TransactionAnalysisRequestedEvent event =
+                sampleEventWithMetadata("key-123", null);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> listener.onMessage(event)
+        );
+
+        verifyNoInteractions(transactionApplicationService);
+
+        assertThat(counter("started")).isEqualTo(1.0);
+        assertThat(counter("failure")).isEqualTo(1.0);
+        assertThat(counter("success")).isZero();
+        assertThat(durationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRejectEventWithFingerprintButMissingIdempotencyKey() {
+        TransactionAnalysisRequestedEvent event =
+                sampleEventWithMetadata(null, "a".repeat(64));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> listener.onMessage(event)
+        );
+
+        verifyNoInteractions(transactionApplicationService);
+
+        assertThat(counter("started")).isEqualTo(1.0);
+        assertThat(counter("failure")).isEqualTo(1.0);
+        assertThat(counter("success")).isZero();
+        assertThat(durationCount()).isEqualTo(1);
     }
 
     @Test
@@ -149,25 +199,10 @@ class TransactionAnalysisKafkaListenerTest {
                 () -> listener.onMessage(event)
         );
 
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "started").counter().count())
-                .isEqualTo(1.0);
-
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "failure").counter().count())
-                .isEqualTo(1.0);
-
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing"
-        ).tag("result", "success").counter().count())
-                .isZero();
-
-        assertThat(meterRegistry.get(
-                "fraud_detector.kafka.transaction_analysis.processing.duration"
-        ).timer().count())
-                .isEqualTo(1);
+        assertThat(counter("started")).isEqualTo(1.0);
+        assertThat(counter("failure")).isEqualTo(1.0);
+        assertThat(counter("success")).isZero();
+        assertThat(durationCount()).isEqualTo(1);
     }
 
     @Test
@@ -178,7 +213,26 @@ class TransactionAnalysisKafkaListenerTest {
         );
     }
 
+    private double counter(String result) {
+        return meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.processing"
+        ).tag("result", result).counter().count();
+    }
+
+    private long durationCount() {
+        return meterRegistry.get(
+                "fraud_detector.kafka.transaction_analysis.processing.duration"
+        ).timer().count();
+    }
+
     private TransactionAnalysisRequestedEvent sampleEvent() {
+        return sampleEventWithMetadata(null, null);
+    }
+
+    private TransactionAnalysisRequestedEvent sampleEventWithMetadata(
+            String idempotencyKey,
+            String requestFingerprint
+    ) {
         return new TransactionAnalysisRequestedEvent(
                 new TransactionAnalysisRequestedEvent.TransactionRequest(
                         "user-123",
@@ -213,7 +267,9 @@ class TransactionAnalysisKafkaListenerTest {
                                 -23.5505,
                                 -46.6333
                         )
-                )
+                ),
+                idempotencyKey,
+                requestFingerprint
         );
     }
 }
