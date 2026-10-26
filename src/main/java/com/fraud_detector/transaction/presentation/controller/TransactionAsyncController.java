@@ -4,9 +4,9 @@ import com.fraud_detector.shared.presentation.error.ApiErrorResponse;
 import com.fraud_detector.transaction.application.TransactionAnalysisAsyncService;
 import com.fraud_detector.transaction.application.mapper.TransactionAnalysisMapper;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
+import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisAcceptedResponse;
 import com.fraud_detector.transaction.presentation.dto.TransactionAnalysisRequest;
-import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -45,21 +46,38 @@ public class TransactionAsyncController {
     @PostMapping("/analyze/async")
     @Operation(
             summary = "Submit a transaction for asynchronous analysis",
-            description = "Publishes a transaction analysis request to Kafka and returns immediately."
+            description = "Publishes a transaction analysis request to Kafka and returns after the broker confirms publication."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "202",
                     description = "Request accepted for asynchronous processing",
-                    content = @Content(schema = @Schema(implementation = TransactionAnalysisAcceptedResponse.class))
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = TransactionAnalysisAcceptedResponse.class
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "400",
                     description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ApiErrorResponse.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Kafka publication failed",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ApiErrorResponse.class
+                            )
+                    )
             )
     })
-    public ResponseEntity<TransactionAnalysisAcceptedResponse> analyzeAsync(
+    public CompletableFuture<ResponseEntity<TransactionAnalysisAcceptedResponse>> analyzeAsync(
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransactionAnalysisRequest request
     ) {
@@ -72,16 +90,15 @@ public class TransactionAsyncController {
         TransactionAnalysisRequestedEvent event =
                 mapper.toRequestedEvent(request, idempotencyKey);
 
-        asyncService.requestAnalysis(event);
-
-        return ResponseEntity
-                .status(HttpStatus.ACCEPTED)
-                .body(
-                        new TransactionAnalysisAcceptedResponse(
-                                "Transaction analysis request accepted.",
-                                "ACCEPTED",
-                                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
-                        )
-                );
+        return asyncService.requestAnalysis(event)
+                .thenApply(ignored -> ResponseEntity
+                        .status(HttpStatus.ACCEPTED)
+                        .body(
+                                new TransactionAnalysisAcceptedResponse(
+                                        "Transaction analysis request accepted.",
+                                        "ACCEPTED",
+                                        KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
+                                )
+                        ));
     }
 }

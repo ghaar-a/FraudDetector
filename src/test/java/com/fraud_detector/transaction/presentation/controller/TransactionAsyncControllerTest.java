@@ -3,6 +3,7 @@ package com.fraud_detector.transaction.presentation.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fraud_detector.shared.presentation.error.RestExceptionHandler;
 import com.fraud_detector.transaction.application.TransactionAnalysisAsyncService;
+import com.fraud_detector.transaction.application.TransactionAnalysisPublicationException;
 import com.fraud_detector.transaction.application.mapper.TransactionAnalysisMapper;
 import com.fraud_detector.transaction.domain.model.TransactionCategory;
 import com.fraud_detector.transaction.infrastructure.messaging.KafkaTopics;
@@ -13,19 +14,24 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class TransactionAsyncControllerTest {
@@ -37,62 +43,57 @@ class TransactionAsyncControllerTest {
 
     @BeforeEach
     void setUp() {
-        this.asyncService =
-                mock(TransactionAnalysisAsyncService.class);
+        asyncService = mock(TransactionAnalysisAsyncService.class);
+        mapper = new TransactionAnalysisMapper();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
 
-        this.mapper =
-                new TransactionAnalysisMapper();
-
-        this.objectMapper =
-                new ObjectMapper().findAndRegisterModules();
-
-        this.mockMvc =
-                MockMvcBuilders
-                        .standaloneSetup(
-                                new TransactionAsyncController(
-                                        asyncService,
-                                        mapper
-                                )
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(
+                        new TransactionAsyncController(
+                                asyncService,
+                                mapper
                         )
-                        .setControllerAdvice(
-                                new RestExceptionHandler()
-                        )
-                        .build();
+                )
+                .setControllerAdvice(new RestExceptionHandler())
+                .build();
     }
 
     @Test
-    void shouldAcceptTransactionAnalysisRequest()
-            throws Exception {
+    void shouldAcceptTransactionAnalysisRequest() throws Exception {
+        TransactionAnalysisRequest request = createRequest();
 
-        TransactionAnalysisRequest request =
-                createRequest();
+        when(asyncService.requestAnalysis(
+                org.mockito.ArgumentMatchers.any(
+                        TransactionAnalysisRequestedEvent.class
+                )
+        )).thenReturn(CompletableFuture.completedFuture(null));
 
-        mockMvc.perform(
+        MvcResult initialResult = mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
-                                .header("Idempotency-Key", "controller-test-key")
+                                .header(
+                                        "Idempotency-Key",
+                                        "controller-test-key"
+                                )
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
-                                        objectMapper.writeValueAsString(
-                                                request
-                                        )
+                                        objectMapper.writeValueAsString(request)
                                 )
                 )
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(initialResult))
                 .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
                 .andExpect(
-                        jsonPath("$.status")
-                                .value("ACCEPTED")
+                        jsonPath("$.message").value(
+                                "Transaction analysis request accepted."
+                        )
                 )
                 .andExpect(
-                        jsonPath("$.message")
-                                .value(
-                                        "Transaction analysis request accepted."
-                                )
-                )
-                .andExpect(
-                        jsonPath("$.topic")
-                                .value(
-                                        KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
-                                )
+                        jsonPath("$.topic").value(
+                                KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
+                        )
                 );
 
         ArgumentCaptor<TransactionAnalysisRequestedEvent> captor =
@@ -100,27 +101,23 @@ class TransactionAsyncControllerTest {
                         TransactionAnalysisRequestedEvent.class
                 );
 
-        verify(asyncService)
-                .requestAnalysis(captor.capture());
+        verify(asyncService).requestAnalysis(captor.capture());
 
-        TransactionAnalysisRequestedEvent capturedEvent =
-                captor.getValue();
+        TransactionAnalysisRequestedEvent capturedEvent = captor.getValue();
 
         assertThat(capturedEvent).isNotNull();
-
-        assertThat(
-                capturedEvent.transaction().userId()
-        ).isEqualTo("user-123");
-
-        assertThat(
-                capturedEvent.context().knownDeviceIds()
-        ).containsExactly("device-123");
+        assertThat(capturedEvent.transaction().userId())
+                .isEqualTo("user-123");
+        assertThat(capturedEvent.context().knownDeviceIds())
+                .containsExactly("device-123");
+        assertThat(capturedEvent.idempotencyKey())
+                .isEqualTo("controller-test-key");
+        assertThat(capturedEvent.requestFingerprint())
+                .isNotBlank();
     }
 
     @Test
-    void shouldRejectInvalidTransactionAnalysisRequest()
-            throws Exception {
-
+    void shouldRejectInvalidTransactionAnalysisRequest() throws Exception {
         String requestBody = """
                 {
                   "transaction": {
@@ -141,21 +138,22 @@ class TransactionAsyncControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
-                                .header("Idempotency-Key", "controller-test-key")
+                                .header(
+                                        "Idempotency-Key",
+                                        "controller-test-key"
+                                )
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody)
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(
-                        jsonPath("$.message")
-                                .value("Validation failed")
+                        jsonPath("$.message").value("Validation failed")
                 )
                 .andExpect(
-                        jsonPath("$.path")
-                                .value(
-                                        "/api/v1/transactions/analyze/async"
-                                )
+                        jsonPath("$.path").value(
+                                "/api/v1/transactions/analyze/async"
+                        )
                 )
                 .andExpect(jsonPath("$.fieldErrors").isArray());
 
@@ -163,28 +161,67 @@ class TransactionAsyncControllerTest {
     }
 
     @Test
-    void shouldRejectMalformedJson()
-            throws Exception {
-
+    void shouldRejectMalformedJson() throws Exception {
         mockMvc.perform(
                         post("/api/v1/transactions/analyze/async")
-                                .header("Idempotency-Key", "controller-test-key")
+                                .header(
+                                        "Idempotency-Key",
+                                        "controller-test-key"
+                                )
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{ invalid-json")
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(
-                        jsonPath("$.message")
-                                .value("Malformed JSON request")
+                        jsonPath("$.message").value("Malformed JSON request")
                 )
                 .andExpect(
-                        jsonPath("$.path")
-                                .value(
-                                        "/api/v1/transactions/analyze/async"
-                                )
+                        jsonPath("$.path").value(
+                                "/api/v1/transactions/analyze/async"
+                        )
                 );
 
         verifyNoInteractions(asyncService);
+    }
+
+    @Test
+    void shouldReturnServiceUnavailableWhenKafkaPublicationFails()
+            throws Exception {
+        TransactionAnalysisRequest request = createRequest();
+
+        when(asyncService.requestAnalysis(
+                org.mockito.ArgumentMatchers.any(
+                        TransactionAnalysisRequestedEvent.class
+                )
+        )).thenReturn(
+                CompletableFuture.failedFuture(
+                        new TransactionAnalysisPublicationException(
+                                new IllegalStateException("Kafka unavailable")
+                        )
+                )
+        );
+
+        MvcResult initialResult = mockMvc.perform(
+                        post("/api/v1/transactions/analyze/async")
+                                .header(
+                                        "Idempotency-Key",
+                                        "controller-failure-test"
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(request)
+                                )
+                )
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(initialResult))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(
+                        jsonPath("$.message").value(
+                                "Transaction analysis request could not be published"
+                        )
+                );
     }
 
     private TransactionAnalysisRequest createRequest() {
@@ -197,9 +234,7 @@ class TransactionAsyncControllerTest {
                         ),
                         "Electronics Store",
                         TransactionCategory.ELECTRONICS,
-                        Instant.parse(
-                                "2026-07-24T12:00:00Z"
-                        ),
+                        Instant.parse("2026-07-24T12:00:00Z"),
                         new TransactionAnalysisRequest.LocationRequest(
                                 "BR",
                                 "SP",

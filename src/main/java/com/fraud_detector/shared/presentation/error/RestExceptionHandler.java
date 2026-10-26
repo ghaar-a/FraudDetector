@@ -1,6 +1,8 @@
+
 package com.fraud_detector.shared.presentation.error;
 
 import com.fraud_detector.transaction.application.IdempotencyKeyConflictException;
+import com.fraud_detector.transaction.application.TransactionAnalysisPublicationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -79,6 +81,19 @@ public class RestExceptionHandler {
         return buildResponse(
                 HttpStatus.CONFLICT,
                 "Idempotency key has already been used with a different request",
+                request,
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(TransactionAnalysisPublicationException.class)
+    public ResponseEntity<ApiErrorResponse> handleTransactionAnalysisPublicationFailure(
+            TransactionAnalysisPublicationException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Transaction analysis request could not be published",
                 request,
                 List.of()
         );

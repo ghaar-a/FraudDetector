@@ -1,17 +1,21 @@
+
 package com.fraud_detector.transaction.application;
 
 import com.fraud_detector.transaction.infrastructure.messaging.event.TransactionAnalysisRequestedEvent;
 import com.fraud_detector.transaction.infrastructure.messaging.producer.TransactionAnalysisKafkaProducer;
 import org.junit.jupiter.api.Test;
+import org.springframework.kafka.support.SendResult;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class TransactionAnalysisAsyncServiceTest {
 
@@ -23,10 +27,38 @@ class TransactionAnalysisAsyncServiceTest {
 
     @Test
     void shouldRequestAnalysisByPublishingEvent() {
-        TransactionAnalysisRequestedEvent event =
-                sampleEvent();
+        TransactionAnalysisRequestedEvent event = sampleEvent();
 
-        asyncService.requestAnalysis(event);
+        when(kafkaProducer.publish(event))
+                .thenReturn(
+                        CompletableFuture.completedFuture(
+                                mock(SendResult.class)
+                        )
+                );
+
+        asyncService.requestAnalysis(event).join();
+
+        verify(kafkaProducer).publish(event);
+    }
+
+    @Test
+    void shouldPropagateKafkaPublicationFailure() {
+        TransactionAnalysisRequestedEvent event = sampleEvent();
+
+        when(kafkaProducer.publish(event))
+                .thenReturn(
+                        CompletableFuture.failedFuture(
+                                new IllegalStateException("Kafka unavailable")
+                        )
+                );
+
+        CompletableFuture<Void> result =
+                asyncService.requestAnalysis(event);
+
+        assertThrows(
+                java.util.concurrent.CompletionException.class,
+                result::join
+        );
 
         verify(kafkaProducer).publish(event);
     }

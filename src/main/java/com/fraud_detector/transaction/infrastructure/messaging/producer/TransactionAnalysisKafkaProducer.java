@@ -9,10 +9,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class TransactionAnalysisKafkaProducer {
@@ -40,7 +42,9 @@ public class TransactionAnalysisKafkaProducer {
         );
     }
 
-    public void publish(TransactionAnalysisRequestedEvent event) {
+    public CompletableFuture<SendResult<String, TransactionAnalysisRequestedEvent>> publish(
+            TransactionAnalysisRequestedEvent event
+    ) {
         Objects.requireNonNull(event, "Event cannot be null");
 
         ProducerRecord<String, TransactionAnalysisRequestedEvent> record =
@@ -50,8 +54,7 @@ public class TransactionAnalysisKafkaProducer {
                         event
                 );
 
-        String correlationId =
-                MDC.get(CorrelationIdContext.MDC_KEY);
+        String correlationId = MDC.get(CorrelationIdContext.MDC_KEY);
 
         if (correlationId != null && !correlationId.isBlank()) {
             record.headers().add(
@@ -65,31 +68,42 @@ public class TransactionAnalysisKafkaProducer {
                 KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
         );
 
+        CompletableFuture<SendResult<String, TransactionAnalysisRequestedEvent>>
+                sendFuture;
+
         try {
-            kafkaTemplate.send(record).whenComplete((result, exception) -> {
-                if (exception == null) {
-                    metrics.recordPublishSuccess();
-                    LOGGER.debug(
-                            "Transaction analysis request published successfully; topic={}",
-                            KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
-                    );
-                } else {
-                    metrics.recordPublishFailure();
-                    LOGGER.error(
-                            "Failed to publish transaction analysis request; topic={}",
-                            KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
-                            exception
-                    );
-                }
-            });
+            sendFuture = kafkaTemplate.send(record);
         } catch (RuntimeException exception) {
             metrics.recordPublishFailure();
+
             LOGGER.error(
                     "Failed to submit transaction analysis request to Kafka; topic={}",
                     KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
                     exception
             );
-            throw exception;
+
+            return CompletableFuture.failedFuture(exception);
         }
+
+        sendFuture.whenComplete((result, exception) -> {
+            if (exception == null) {
+                metrics.recordPublishSuccess();
+
+                LOGGER.debug(
+                        "Transaction analysis request published successfully; topic={}",
+                        KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS
+                );
+            } else {
+                metrics.recordPublishFailure();
+
+                LOGGER.error(
+                        "Failed to publish transaction analysis request; topic={}",
+                        KafkaTopics.TRANSACTION_ANALYSIS_REQUESTS,
+                        exception
+                );
+            }
+        });
+
+        return sendFuture;
     }
 }
