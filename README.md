@@ -1,215 +1,230 @@
+
 # FraudDetector
 
-Real-time fraud detection platform built with Java and Spring Boot, designed to analyze financial transactions and identify potentially fraudulent behavior through rule-based detection, behavioral analysis, event-driven processing, and machine learning.
+A real-time financial fraud detection backend built with Java 21, Spring Boot, PostgreSQL, and Apache Kafka. The project demonstrates modular backend architecture, explainable risk assessment, asynchronous event processing, idempotency, automated testing, and operational observability.
 
 ## Overview
 
-FraudDetector is a backend-focused software engineering project that simulates a real-world financial fraud detection platform.
+FraudDetector simulates a transaction processing platform that evaluates financial transactions for potentially suspicious behavior. Its design separates transaction handling, fraud analysis, persistence, and asynchronous messaging.
 
-The system is designed to receive and analyze financial transactions, identify suspicious patterns, calculate risk scores, and produce automated decisions based on multiple fraud detection strategies.
+The project focuses on backend engineering practices relevant to real-world financial systems, including validation, error handling, database migrations, event-driven processing, and reliable message publication.
 
-The project combines deterministic business rules, behavioral profiling, event-driven architecture, and machine learning techniques to demonstrate how modern backend systems can be designed to process high volumes of transactional data.
+## Technology Stack
 
-## Main Objectives
+| Technology | Purpose |
+|---|---|
+| Java 21 | Application language |
+| Spring Boot | Application framework |
+| Spring Security | API security |
+| Spring Data JPA | Persistence and ORM |
+| PostgreSQL | Relational database |
+| Flyway | Database schema migrations |
+| Apache Kafka | Asynchronous transaction analysis |
+| Gradle Kotlin DSL | Build and dependency management |
+| JUnit 5 and Spring Boot Test | Automated testing |
+| Testcontainers | Integration testing with containerized dependencies |
+| Spring Boot Actuator | Health and application metrics |
+| Springdoc OpenAPI | API documentation |
+| Docker Compose | Local PostgreSQL environment |
+| GitHub Actions | Continuous integration |
 
-* Detect potentially fraudulent financial transactions.
-* Analyze transaction behavior and historical patterns.
-* Identify unusual transaction amounts.
-* Detect suspicious locations and geographic anomalies.
-* Identify unusual transaction times.
-* Detect abnormal transaction frequency.
-* Analyze changes in devices and transaction behavior.
-* Calculate a transaction risk score.
-* Produce explainable fraud detection decisions.
-* Process transactions asynchronously through event-driven architecture.
-* Apply machine learning to complement deterministic fraud detection rules.
-* Provide observability and operational metrics.
-* Demonstrate automated testing and production-oriented engineering practices.
+## Implemented Capabilities
 
-## Planned Architecture
+- Transaction API with request validation and structured error handling.
+- Fraud analysis using domain rules, risk scores, risk levels, decisions, and explainable reasons.
+- PostgreSQL persistence with Flyway-managed migrations.
+- Asynchronous transaction analysis requests published through Kafka.
+- Producer publication confirmation before returning `202 Accepted` from the asynchronous endpoint.
+- HTTP `503 Service Unavailable` handling when asynchronous publication fails.
+- Kafka retry and dead-letter handling.
+- Idempotent transaction analysis processing and consistency validation for idempotency metadata.
+- Application metrics and operational health endpoints.
+- API security configuration.
+- Automated unit, controller, and integration tests.
+- GitHub Actions workflow for automated builds and tests.
 
-The project will evolve incrementally from a modular backend application into an event-driven fraud detection platform.
+## Architecture
 
-The planned architecture includes:
-
-* Java 21
-* Spring Boot
-* Spring Data JPA
-* PostgreSQL
-* Apache Kafka
-* Redis
-* Spring Security
-* Docker
-* Testcontainers
-* OpenAPI
-* Spring Boot Actuator
-* Prometheus
-* Grafana
-* Machine Learning
-
-The system will initially use a modular architecture and will progressively introduce asynchronous event processing and machine learning capabilities when the corresponding business and technical requirements are established.
-
-## Fraud Detection Pipeline
-
-The target processing flow is:
+The application follows a modular structure that separates domain logic, application services, infrastructure, and presentation.
 
 ```text
-Financial Transaction
-        |
-        v
+Client
+  |
+  v
 REST API
-        |
-        v
-Transaction Validation
-        |
-        v
-Fraud Detection Engine
-        |
-        +----------------------+
-        |                      |
-        v                      v
-Rule-Based Analysis     Behavioral Analysis
-        |                      |
-        +----------+-----------+
-                   |
-                   v
-            Machine Learning
-                   |
-                   v
-             Risk Scoring
-                   |
-                   v
-           Fraud Decision
-                   |
-          +--------+--------+
-          |        |        |
-          v        v        v
-       APPROVED  REVIEW  BLOCKED
+  |
+  +--> Synchronous analysis
+  |       |
+  |       v
+  |   Fraud detection services
+  |       |
+  |       v
+  |   Analysis response
+  |
+  +--> Asynchronous analysis
+          |
+          v
+      Request validation
+          |
+          v
+      Kafka producer
+          |
+          v
+      Publication confirmation
+          |
+          v
+      HTTP 202 Accepted
+          
+      Kafka consumer
+          |
+          v
+      Idempotency validation
+          |
+          v
+      Transaction analysis
+          |
+          v
+      Persistence and metrics
 ```
 
-## Fraud Detection Strategies
+The asynchronous HTTP response confirms successful publication of the request. It does not mean that fraud analysis has already finished.
 
-The platform is expected to evaluate multiple risk indicators, including:
+## API Endpoints
 
-### Transaction Amount
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/transactions/analyze` | Request synchronous transaction analysis |
+| `POST` | `/api/v1/transactions/analyze/async` | Publish a transaction analysis request asynchronously |
+| `GET` | `/actuator/health` | Application health |
+| `GET` | `/actuator/info` | Application information |
+| `GET` | `/actuator/metrics` | Available application metrics |
+| `GET` | `/api-docs` | OpenAPI specification |
+| `GET` | `/swagger-ui.html` | Interactive API documentation |
 
-Identifies transactions significantly above the user's historical spending profile.
+The asynchronous endpoint returns `202 Accepted` after Kafka confirms publication. Publication failures are mapped to `503 Service Unavailable`.
 
-### Unusual Location
+Security configuration and request requirements apply to the protected endpoints.
 
-Detects transactions performed from locations that differ significantly from the user's historical behavior.
+## Prerequisites
 
-### Impossible Travel
+- JDK 21
+- Docker and Docker Compose
+- Git
+- A Kafka broker for exercising asynchronous transaction publication
 
-Identifies geographically inconsistent transactions that could indicate account compromise or credential theft.
+Docker is also required for integration tests that use Testcontainers.
 
-### Unusual Transaction Time
+## Getting Started
 
-Detects transactions performed outside the user's typical activity periods.
+### 1. Clone the repository
 
-### Transaction Velocity
-
-Identifies unusually high transaction frequency within a short period.
-
-### Device Anomaly
-
-Detects transactions performed using previously unknown or suspicious devices.
-
-### Behavioral Deviation
-
-Compares current transactions against the user's historical behavioral profile.
-
-### Machine Learning
-
-A machine learning model will complement deterministic rules by estimating the probability that a transaction represents fraudulent behavior.
-
-The final decision will combine multiple signals instead of relying exclusively on a single rule or model.
-
-## Risk Classification
-
-Transactions will be evaluated through a risk scoring mechanism.
-
-The target classification is:
-
-```text
-LOW       -> Low risk
-MEDIUM    -> Requires additional analysis
-HIGH      -> Strong fraud indicators
-CRITICAL  -> High probability of fraud
+```bash
+git clone https://github.com/ghaar-a/FraudDetector.git
+cd FraudDetector
 ```
 
-The system will also provide explainable reasons for risk classification.
+### 2. Start PostgreSQL
 
-Example:
-
-```json
-{
-  "transactionId": "TX-123456",
-  "riskScore": 0.93,
-  "riskLevel": "CRITICAL",
-  "decision": "BLOCKED",
-  "reasons": [
-    "UNUSUAL_LOCATION",
-    "UNUSUAL_TIME",
-    "ABNORMAL_AMOUNT"
-  ]
-}
+```bash
+docker compose up -d postgres
 ```
 
-## Engineering Practices
+The local Compose configuration creates the `frauddetector` database and persists database files in a named volume.
 
-The project is being developed following professional software engineering principles, including:
+### 3. Configure the application
 
-* Clean and modular architecture.
-* Separation of concerns.
-* SOLID principles.
-* Domain-oriented design.
-* Immutable domain objects where appropriate.
-* Explicit business rules.
-* DTOs for API boundaries.
-* Bean Validation.
-* Automated testing.
-* Integration testing.
-* Testcontainers.
-* Database migration management.
-* API documentation.
-* Observability.
-* Structured logging.
-* Secure configuration.
-* Environment-based configuration.
-* Containerization.
-* Continuous integration.
+The application supports these environment variables:
 
-## Project Status
+| Variable | Default |
+|---|---|
+| `DB_URL` | `jdbc:postgresql://localhost:5432/frauddetector` |
+| `DB_USERNAME` | `frauddetector` |
+| `DB_PASSWORD` | `frauddetector` |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
+| `APP_SECURITY_USERNAME` | `fraud-detector` |
+| `APP_SECURITY_PASSWORD` | `change-me` |
 
-The project is currently in the initial architecture and domain foundation phase.
+Override the default security credentials before running the application outside a local development environment. Do not commit real credentials or secrets to the repository.
 
-Development will progress incrementally through functional implementation cycles.
+A reachable Kafka broker is required to exercise asynchronous publication. The Compose configuration currently starts PostgreSQL only.
 
-### Planned Evolution
+### 4. Run the application
 
-* [ ] Project foundation
-* [ ] Domain modeling
-* [ ] Transaction API
-* [ ] Fraud detection rules
-* [ ] Risk scoring engine
-* [ ] PostgreSQL persistence
-* [ ] Database migrations
-* [ ] Automated tests
-* [ ] Integration tests
-* [ ] Testcontainers
-* [ ] Kafka event-driven processing
-* [ ] Redis behavioral analysis
-* [ ] Machine learning integration
-* [ ] Security and authentication
-* [ ] Observability
-* [ ] Docker
-* [ ] CI/CD
-* [ ] Performance testing
-* [ ] Production-oriented documentation
+On Linux or macOS:
+
+```bash
+./gradlew bootRun
+```
+
+On Windows:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+Flyway applies database migrations when the application starts. Hibernate validates the database schema.
+
+### 5. Open the API documentation
+
+Once the application is running, visit:
+
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- OpenAPI specification: http://localhost:8080/api-docs
+- Health endpoint: http://localhost:8080/actuator/health
+
+Protected endpoints may require HTTP Basic authentication using the configured application credentials.
+
+## Testing
+
+Run the complete test suite:
+
+```bash
+./gradlew clean test
+```
+
+The test suite includes automated tests for application services, REST controllers, Kafka processing, persistence, and integration scenarios.
+
+Testcontainers-based tests require a working Docker environment.
+
+## Continuous Integration
+
+The GitHub Actions workflow at `.github/workflows/ci.yml` runs on pushes to `main`, pull requests targeting `main`, and manual workflow dispatches.
+
+The pipeline provisions PostgreSQL, configures Java 21 and Gradle, and executes:
+
+```bash
+./gradlew --no-daemon clean test
+```
+
+A successful workflow verifies that the build and configured test suite pass in the CI environment.
+
+## Engineering Principles
+
+- Separation of concerns and modular design.
+- Explicit domain models and business rules.
+- Immutable domain objects where appropriate.
+- DTOs and validation at API boundaries.
+- Consistent error handling.
+- Database schema versioning.
+- Reliable asynchronous messaging.
+- Idempotent event processing.
+- Automated testing and continuous integration.
+- Configurable credentials and environment-based settings.
+- Operational health and metrics.
+
+## Roadmap
+
+Potential future improvements include:
+
+- Redis-backed behavioral profiles and transaction velocity analysis.
+- Machine learning integration with a documented model evaluation process.
+- Performance and load testing for transaction throughput.
+- Expanded monitoring and dashboards.
+- Containerized application deployment.
+- Additional end-to-end scenarios and operational documentation.
+
+These items are future enhancements, not claims that the functionality is already implemented.
 
 ## Project Goal
 
-The primary goal of FraudDetector is to demonstrate practical backend engineering skills through a realistic problem domain that combines Java development, distributed systems, data processing, and artificial intelligence.
-
-The project is intended as a professional portfolio project and will prioritize maintainability, testability, explainability, and architectural evolution over unnecessary complexity.
+FraudDetector is a portfolio project focused on demonstrating practical Java backend engineering skills through a realistic financial domain. It emphasizes maintainable architecture, reliable event processing, testability, explainable decisions, and incremental evolution toward production-oriented engineering.
